@@ -1,0 +1,14 @@
+{
+  "name": "kajok",
+  "version": "1.0.0",
+  "private": true,
+  "description": "KAJOK — Your Order. Your Way. Bilingual (AR/EN) e-commerce platform for the Egyptian and Sudanese markets (EGP/SDG).",
+  "scripts": {
+    "install:all": "npm --prefix server install && npm --prefix client install",
+    "build": "npm --prefix client run build",
+    "start": "npm --prefix server run start",
+    "dev": "npm --prefix server run dev",
+    "dev:client": "npm --prefix client run dev",
+    "typecheck": "npm --prefix server run typecheck && npm --prefix client run typecheck"
+  }
+}

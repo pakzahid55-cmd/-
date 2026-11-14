@@ -1,0 +1,11 @@
+rules_version = '2';
+
+// Product media is served from the app's /public folder. Firebase Storage is not
+// used for business data at this time; deny everything by default.
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

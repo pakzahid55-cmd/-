@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600">
+<defs>
+  <radialGradient id="bg" cx="50%" cy="38%" r="80%">
+    <stop offset="0%" stop-color="#1E3A5F" stop-opacity="0.28"/>
+    <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+  </radialGradient>
+  <linearGradient id="body" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0%" stop-color="#1E3A5F"/>
+    <stop offset="100%" stop-color="#0F1B2D"/>
+  </linearGradient>
+</defs>
+<rect width="600" height="600" fill="#F8F6FC"/>
+<rect width="600" height="600" fill="url(#bg)"/>
+<g transform="translate(300,270)"><path d="M-100 -125 L-195 -70 L-150 60 L-110 25 L-110 165 L110 165 L110 25 L150 60 L195 -70 L100 -125 Q0 -75 -100 -125 Z" fill="url(#body)"/>
+  <path d="M0 -102 L0 165" stroke="#1E3A5F" stroke-width="8" stroke-opacity="0.7"/>
+  <path d="M-30 -100 L0 -62 L30 -100" fill="none" stroke="#191523" stroke-width="10"/></g>
+<text x="300" y="548" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="800" font-size="26" letter-spacing="6" fill="#32145F" fill-opacity="0.85">KAJOK</text>
+</svg>
