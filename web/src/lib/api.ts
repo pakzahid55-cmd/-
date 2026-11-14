@@ -1,6 +1,8 @@
 /**
  * KAJOK API client.
  * All calls go to the same origin under /api (proxied to the backend in dev).
+ * In VITE_DEMO_MODE builds (public GitHub Pages demo) calls are served by the
+ * in-browser demo API so the UI is fully explorable without a server.
  */
 
 export class ApiError extends Error {
@@ -26,6 +28,18 @@ interface RequestOptions {
 
 export async function api<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const { method = "GET", body, auth = true } = options;
+
+  if (import.meta.env.VITE_DEMO_MODE === "1") {
+    const { demoApi } = await import("./demo-api");
+    try {
+      return await demoApi<T>(path, { method, body, auth });
+    } catch (err) {
+      const e = err as { status?: number; message?: string };
+      if (e.status === 401 && getToken()) setToken(null);
+      throw new ApiError(e.status ?? 500, e.message ?? "Request failed");
+    }
+  }
+
   const headers: Record<string, string> = {};
   if (body !== undefined) headers["Content-Type"] = "application/json";
   const token = getToken();

@@ -1,5 +1,6 @@
 import { PageHeader } from "../components/ui";
 import { useI18n } from "../i18n/I18nProvider";
+import { asset } from "../lib/asset";
 
 export function AboutPage() {
   const { t } = useI18n();
@@ -8,7 +9,7 @@ export function AboutPage() {
       <PageHeader title={t("about.title")} subtitle={t("about.tagline")} />
 
       <div className="overflow-hidden rounded-lg">
-        <img src="/images/hero.jpg" alt="" className="h-56 w-full object-cover sm:h-80" />
+        <img src={asset("/images/hero.jpg")} alt="" className="h-56 w-full object-cover sm:h-80" />
       </div>
 
       <div className="mt-10 grid gap-10 lg:grid-cols-2">

@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { EmptyState, PageHeader, QuantityStepper } from "../components/ui";
 import { useI18n } from "../i18n/I18nProvider";
 import { api } from "../lib/api";
+import { asset } from "../lib/asset";
 import { formatPrice } from "../lib/format";
 import { cartTotals, useCart } from "../store/cart";
 import { useAuth } from "../store/auth";
@@ -73,7 +74,7 @@ export function CartPage() {
                   src={item.image}
                   alt={pick(item.nameEn, item.nameAr)}
                   className="h-24 w-24 rounded-lg object-cover"
-                  onError={(e) => ((e.currentTarget as HTMLImageElement).src = "/images/categories/electronics.jpg")}
+                  onError={(e) => ((e.currentTarget as HTMLImageElement).src = asset("/images/categories/electronics.jpg"))}
                 />
               </Link>
               <div className="flex flex-1 flex-col">

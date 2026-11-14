@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useI18n } from "../i18n/I18nProvider";
+import { asset } from "../lib/asset";
 import type { Product } from "../lib/types";
 import { useCart } from "../store/cart";
 import { useWishlist } from "../store/wishlist";
@@ -37,12 +38,12 @@ export function ProductCard({ product }: { product: Product }) {
         <Link to={`/product/${product.slug}`} aria-label={name}>
           <div className="aspect-square overflow-hidden bg-surface">
             <img
-              src={product.images[0] ?? "/images/categories/electronics.jpg"}
+              src={product.images[0] ?? asset("/images/categories/electronics.jpg")}
               alt={name}
               loading="lazy"
               className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
               onError={(e) => {
-                (e.currentTarget as HTMLImageElement).src = "/images/categories/electronics.jpg";
+                (e.currentTarget as HTMLImageElement).src = asset("/images/categories/electronics.jpg");
               }}
             />
           </div>

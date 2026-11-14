@@ -4,6 +4,7 @@ import { ProductGrid } from "../components/ProductCard";
 import { Breadcrumbs, DiscountBadge, Price, QuantityStepper, Rating, Spinner, Stars } from "../components/ui";
 import { useI18n } from "../i18n/I18nProvider";
 import { api } from "../lib/api";
+import { asset } from "../lib/asset";
 import { formatDate } from "../lib/format";
 import type { Brand, Category, Product, Review } from "../lib/types";
 import { useAuth } from "../store/auth";
@@ -141,7 +142,7 @@ export function ProductDetailPage() {
               src={product.images[activeImage] ?? product.images[0]}
               alt={name}
               className="aspect-square w-full object-cover"
-              onError={(e) => ((e.currentTarget as HTMLImageElement).src = "/images/categories/electronics.jpg")}
+              onError={(e) => ((e.currentTarget as HTMLImageElement).src = asset("/images/categories/electronics.jpg"))}
             />
           </div>
           {product.images.length > 1 && (
