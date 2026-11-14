@@ -53,3 +53,40 @@ The platform provisions HTTPS automatically.
 - Seed demo accounts (`admin@kajok.com` / `Admin@12345`, `user@kajok.com` / `User@12345`) exist only in a freshly seeded database. **Change them before going live**, or create a new admin and delete the demo users.
 - Demo products/prices are placeholders — enter real products and exchange rates from `/admin`.
 - Firebase (project kajok-65089) is already wired for Auth/Analytics on the client; enable the providers you want (Google, phone) in the Firebase console — email/password login works out of the box via the API.
+
+---
+
+## Supabase database — already provisioned (KAJOK-DELIVERY)
+
+The project **KAJOK-DELIVERY** in the user's Supabase organization ("كجوك", region `eu-west-3`,
+project ref `klhvhjwffjfdeljwulgm`, status ACTIVE_HEALTHY, PostgreSQL 17) has an empty `public` schema —
+nothing to migrate. The KAJOK server creates all tables and seeds the catalog automatically on
+first boot (`CREATE TABLE IF NOT EXISTS`, then `seedIfEmpty`).
+
+### DATABASE_URL for Render (use the Supabase *session pooler* — IPv4 & fully compatible)
+
+```
+postgresql://postgres.klhvhjwffjfdeljwulgm:<DB-PASSWORD>@aws-0-eu-west-3.pooler.supabase.com:5432/postgres
+```
+
+`<DB-PASSWORD>` is the database password chosen when the project was created. If you don't remember it:
+Supabase dashboard → project **KAJOK-DELIVERY** → **Settings → Database → Reset database password** →
+use the new password in the URL above. (Direct connection `db.klhvhjwffjfdeljwulgm.supabase.co:5432`
+also works if your network resolves IPv6; the pooler is safer on Render/Railway.)
+
+### Render steps (free)
+
+1. https://dashboard.render.com → **New → Web Service** → sign in (GitHub).
+2. Select repository `pakzahid55-cmd/-` → branch **`arena/14370066-repo`** (important: NOT main — main is a placeholder).
+3. **Language: Docker** (Render detects the repo's Dockerfile), **Region: EU (Frankfurt)**.
+4. Environment variables:
+   - `DATABASE_URL` = the URL above (with your password)
+   - `JWT_SECRET` = a long random hex string (see .env.example / ask the assistant)
+   - `NODE_ENV` = `production`
+5. **Create Web Service** → first build takes ~5–10 minutes.
+6. The app seeds itself on first boot (24 products, categories, brands, coupons, banners, demo users).
+7. Open `https://<service-name>.onrender.com` — done: a real, public link, any phone, no Arena needed.
+8. Custom domain: service → **Settings → Custom Domains** → add `kajok.com`, point DNS as instructed.
+
+Notes: free Render services sleep after ~15 min idle (first request after sleep takes ~30–60 s);
+demo admin `admin@kajok.com` / `Admin@12345` exists only on first seed — change it from the admin panel.
