@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import { MediaVideo } from "../components/Media";
 import { ProductGrid } from "../components/ProductCard";
 import { Breadcrumbs, DiscountBadge, Price, QuantityStepper, Rating, Spinner, Stars } from "../components/ui";
 import { useI18n } from "../i18n/I18nProvider";
@@ -158,6 +159,11 @@ export function ProductDetailPage() {
                   <img src={img} alt="" className="h-full w-full object-cover" />
                 </button>
               ))}
+            </div>
+          )}
+          {product.video && (
+            <div className="mt-3 overflow-hidden rounded-lg border border-line bg-ink">
+              <MediaVideo src={product.video} poster={product.images[0]} className="aspect-video w-full object-contain" />
             </div>
           )}
         </div>

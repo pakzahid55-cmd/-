@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { ImagePicker, VideoPicker } from "../../components/Media";
 import { PageHeader, Spinner } from "../../components/ui";
 import { useI18n } from "../../i18n/I18nProvider";
 import { api } from "../../lib/api";
@@ -22,7 +23,8 @@ const emptyForm = {
   brandId: 0,
   categoryId: 0,
   stock: 0,
-  images: "",
+  images: [] as string[],
+  video: "",
   specs: "",
   isFeatured: false,
   isNew: false,
@@ -68,7 +70,8 @@ export function AdminProductsPage() {
       brandId: Number(form.brandId),
       categoryId: Number(form.categoryId),
       stock: Number(form.stock),
-      images: form.images.split(",").map((s) => s.trim()).filter(Boolean),
+      images: form.images,
+      video: form.video.trim() || null,
       specs: Object.fromEntries(
         form.specs
           .split("\n")
@@ -111,7 +114,8 @@ export function AdminProductsPage() {
       brandId: p.brandId,
       categoryId: p.categoryId,
       stock: p.stock,
-      images: p.images.join(", "),
+      images: [...p.images],
+      video: p.video ?? "",
       specs: Object.entries(p.specs).map(([k, v]) => `${k}: ${v}`).join("\n"),
       isFeatured: p.isFeatured,
       isNew: p.isNew,
@@ -203,7 +207,16 @@ export function AdminProductsPage() {
           </div>
           <div className="sm:col-span-2">
             <label className="label-kajok">{t("admin.images")}</label>
-            <input value={form.images} onChange={(e) => setForm((f) => f && { ...f, images: e.target.value })} className="input-kajok" dir="ltr" />
+            <ImagePicker
+              images={form.images}
+              onChange={(imgs) => setForm((f) => f && { ...f, images: imgs })}
+            />
+
+            <label className="label-kajok">{t("admin.videoField")}</label>
+            <VideoPicker
+              video={form.video || null}
+              onChange={(v) => setForm((f) => f && { ...f, video: v ?? "" })}
+            />
           </div>
           <div className="sm:col-span-2">
             <label className="label-kajok">{t("product.specifications")} (Key: Value)</label>

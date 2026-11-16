@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { ImagePicker, VideoPicker } from "../../components/Media";
 import { PageHeader } from "../../components/ui";
 import { useI18n } from "../../i18n/I18nProvider";
 import { api } from "../../lib/api";
@@ -10,6 +11,7 @@ const emptyForm = {
   subtitleEn: "",
   subtitleAr: "",
   image: "",
+  video: "",
   link: "/",
   active: true,
   sort: 0,
@@ -71,7 +73,17 @@ export function AdminBannersPage() {
           </div>
           <div>
             <label className="label-kajok">{t("admin.imageField")}</label>
-            <input value={form.image} onChange={(e) => setForm((f) => f && { ...f, image: e.target.value })} className="input-kajok" dir="ltr" />
+            <ImagePicker
+              images={form.image ? [form.image] : []}
+              single
+              onChange={(imgs) => setForm((f) => f && { ...f, image: imgs[0] ?? "" })}
+            />
+
+            <label className="label-kajok">{t("admin.videoField")}</label>
+            <VideoPicker
+              video={form.video || null}
+              onChange={(v) => setForm((f) => f && { ...f, video: v ?? "" })}
+            />
           </div>
           <div>
             <label className="label-kajok">{t("admin.link")}</label>
@@ -115,6 +127,7 @@ export function AdminBannersPage() {
                     subtitleEn: b.subtitleEn,
                     subtitleAr: b.subtitleAr,
                     image: b.image,
+                    video: b.video ?? "",
                     link: b.link,
                     active: b.active,
                     sort: b.sort,

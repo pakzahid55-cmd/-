@@ -17,6 +17,10 @@ export default defineConfig({
         target: "http://127.0.0.1:4000",
         changeOrigin: true,
       },
+      "/uploads": {
+        target: "http://127.0.0.1:4000",
+        changeOrigin: true,
+      },
     },
   },
   preview: {
@@ -25,6 +29,10 @@ export default defineConfig({
     allowedHosts: true,
     proxy: {
       "/api": {
+        target: "http://127.0.0.1:4000",
+        changeOrigin: true,
+      },
+      "/uploads": {
         target: "http://127.0.0.1:4000",
         changeOrigin: true,
       },

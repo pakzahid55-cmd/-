@@ -2,6 +2,7 @@
 # KAJOK end-to-end API test suite (runs against the live dev server + API)
 BASE="http://127.0.0.1:5173"
 PASS=0; FAIL=0
+BEMAIL="buyer-$RANDOM-$RANDOM@test.com"
 ok()   { PASS=$((PASS+1)); echo "  ✓ $1"; }
 fail() { FAIL=$((FAIL+1)); echo "  ✗ $1  ($2)"; }
 
@@ -49,11 +50,11 @@ CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$BASE/api/auth/login" -H 
 [ "$CODE" = "401" ] && ok "Wrong password rejected (401)" || fail "Wrong password" "$CODE"
 
 RTOKEN=$(curl -sf -X POST "$BASE/api/auth/register" -H 'Content-Type: application/json' \
-  -d '{"name":"Test Buyer","email":"buyer1@test.com","password":"Test1234","phone":"+201111111111"}' | j "d['token']")
+  -d "{\"name\":\"Test Buyer\",\"email\":\"$BEMAIL\",\"password\":\"Test1234\",\"phone\":\"+201111111111\"}" | j "d['token']")
 [ -n "$RTOKEN" ] && ok "Register new customer" || fail "Register" "no token"
 
 CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$BASE/api/auth/register" -H 'Content-Type: application/json' \
-  -d '{"name":"Test Buyer","email":"buyer1@test.com","password":"Test1234"}')
+  -d "{\"name\":\"Test Buyer\",\"email\":\"$BEMAIL\",\"password\":\"Test1234\"}")
 [ "$CODE" = "409" ] && ok "Duplicate email rejected (409)" || fail "Duplicate email" "$CODE"
 
 CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$BASE/api/auth/register" -H 'Content-Type: application/json' \
@@ -143,6 +144,17 @@ CU=$(curl -sf "$BASE/api/admin/customers" -H "Authorization: Bearer $ATOKEN" | j
 
 BM=$(curl -sf "$BASE/api/admin/banners" -H "Authorization: Bearer $ATOKEN" | j "len(d['items'])")
 [ "$BM" -ge 2 ] && ok "Admin banners ($BM)" || fail "Banners" "$BM"
+
+echo "── Media uploads ────────────────────────"
+printf 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==' | base64 -d > /tmp/kajok-test.png
+UP=$(curl -sf -X POST "$BASE/api/uploads" -H "Authorization: Bearer $ATOKEN" -F "file=@/tmp/kajok-test.png;type=image/png" | j "d['url']")
+[ -n "$UP" ] && ok "Admin image upload ($UP)" || fail "Image upload" "failed"
+CODE=$(curl -s -o /dev/null -w "%{http_code}" "$BASE$UP")
+[ "$CODE" = "200" ] && ok "Uploaded file served ($CODE)" || fail "Upload serve" "$CODE"
+CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$BASE/api/uploads" -H "Authorization: Bearer $RTOKEN" -F "file=@/tmp/kajok-test.png;type=image/png")
+[ "$CODE" = "403" ] && ok "Customer upload refused (403)" || fail "Upload authz" "$CODE"
+CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$BASE/api/uploads" -H "Authorization: Bearer $ATOKEN" -F "file=@/tmp/kajok-test.png;type=text/plain")
+[ "$CODE" != "201" ] && ok "Non-media upload rejected ($CODE)" || fail "Upload filter" "$CODE"
 
 echo "─────────────────────────────────────────"
 echo "PASSED: $PASS   FAILED: $FAIL"

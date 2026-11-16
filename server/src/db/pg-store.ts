@@ -60,6 +60,7 @@ export class PgStore implements Store {
       categoryId: r.category_id === null ? 0 : Number(r.category_id),
       stock: Number(r.stock),
       images: Array.isArray(r.images) ? r.images : [],
+      video: r.video ?? null,
       specs: r.specs ?? {},
       rating: Number(r.rating),
       reviewCount: Number(r.review_count),
@@ -274,9 +275,9 @@ export class PgStore implements Store {
   }
   async createProduct(data: Omit<Product, "id" | "rating" | "reviewCount" | "salesCount" | "createdAt">): Promise<Product> {
     const rows = await this.q(
-      `INSERT INTO products (slug, name_en, name_ar, description_en, description_ar, price, discount_price, brand_id, category_id, stock, images, specs, is_featured, is_new)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,$12::jsonb,$13,$14) RETURNING *`,
-      [data.slug, data.nameEn, data.nameAr, data.descriptionEn, data.descriptionAr, data.price, data.discountPrice, data.brandId || null, data.categoryId || null, data.stock, JSON.stringify(data.images), JSON.stringify(data.specs), data.isFeatured, data.isNew],
+      `INSERT INTO products (slug, name_en, name_ar, description_en, description_ar, price, discount_price, brand_id, category_id, stock, images, video, specs, is_featured, is_new)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,$12,$13::jsonb,$14,$15) RETURNING *`,
+      [data.slug, data.nameEn, data.nameAr, data.descriptionEn, data.descriptionAr, data.price, data.discountPrice, data.brandId || null, data.categoryId || null, data.stock, JSON.stringify(data.images), data.video ?? null, JSON.stringify(data.specs), data.isFeatured, data.isNew],
     );
     return this.mapProduct(rows[0]);
   }
@@ -285,8 +286,8 @@ export class PgStore implements Store {
     if (!existing[0]) return null;
     const merged = { ...this.mapProduct(existing[0]), ...data };
     const rows = await this.q(
-      `UPDATE products SET slug=$2, name_en=$3, name_ar=$4, description_en=$5, description_ar=$6, price=$7, discount_price=$8, brand_id=$9, category_id=$10, stock=$11, images=$12::jsonb, specs=$13::jsonb, is_featured=$14, is_new=$15 WHERE id=$1 RETURNING *`,
-      [id, merged.slug, merged.nameEn, merged.nameAr, merged.descriptionEn, merged.descriptionAr, merged.price, merged.discountPrice, merged.brandId || null, merged.categoryId || null, merged.stock, JSON.stringify(merged.images), JSON.stringify(merged.specs), merged.isFeatured, merged.isNew],
+      `UPDATE products SET slug=$2, name_en=$3, name_ar=$4, description_en=$5, description_ar=$6, price=$7, discount_price=$8, brand_id=$9, category_id=$10, stock=$11, images=$12::jsonb, video=$13, specs=$14::jsonb, is_featured=$15, is_new=$16 WHERE id=$1 RETURNING *`,
+      [id, merged.slug, merged.nameEn, merged.nameAr, merged.descriptionEn, merged.descriptionAr, merged.price, merged.discountPrice, merged.brandId || null, merged.categoryId || null, merged.stock, JSON.stringify(merged.images), merged.video ?? null, JSON.stringify(merged.specs), merged.isFeatured, merged.isNew],
     );
     return this.mapProduct(rows[0]);
   }
@@ -426,6 +427,7 @@ export class PgStore implements Store {
       subtitleEn: r.subtitle_en,
       subtitleAr: r.subtitle_ar,
       image: r.image,
+      video: r.video ?? null,
       link: r.link,
       active: Boolean(r.active),
       sort: Number(r.sort),
@@ -439,8 +441,8 @@ export class PgStore implements Store {
   }
   async createBanner(data: Omit<Banner, "id">): Promise<Banner> {
     const rows = await this.q(
-      "INSERT INTO banners (title_en, title_ar, subtitle_en, subtitle_ar, image, link, active, sort) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *",
-      [data.titleEn, data.titleAr, data.subtitleEn, data.subtitleAr, data.image, data.link, data.active, data.sort],
+      "INSERT INTO banners (title_en, title_ar, subtitle_en, subtitle_ar, image, video, link, active, sort) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *",
+      [data.titleEn, data.titleAr, data.subtitleEn, data.subtitleAr, data.image, data.video ?? null, data.link, data.active, data.sort],
     );
     return this.mapBanner(rows[0]);
   }
@@ -449,8 +451,8 @@ export class PgStore implements Store {
     if (!existing[0]) return null;
     const merged = { ...this.mapBanner(existing[0]), ...data };
     const rows = await this.q(
-      "UPDATE banners SET title_en=$2, title_ar=$3, subtitle_en=$4, subtitle_ar=$5, image=$6, link=$7, active=$8, sort=$9 WHERE id=$1 RETURNING *",
-      [id, merged.titleEn, merged.titleAr, merged.subtitleEn, merged.subtitleAr, merged.image, merged.link, merged.active, merged.sort],
+      "UPDATE banners SET title_en=$2, title_ar=$3, subtitle_en=$4, subtitle_ar=$5, image=$6, video=$7, link=$8, active=$9, sort=$10 WHERE id=$1 RETURNING *",
+      [id, merged.titleEn, merged.titleAr, merged.subtitleEn, merged.subtitleAr, merged.image, merged.video ?? null, merged.link, merged.active, merged.sort],
     );
     return this.mapBanner(rows[0]);
   }

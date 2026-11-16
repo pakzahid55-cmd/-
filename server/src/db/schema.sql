@@ -53,6 +53,7 @@ CREATE TABLE IF NOT EXISTS products (
   category_id     BIGINT REFERENCES categories(id) ON DELETE SET NULL,
   stock           INTEGER NOT NULL DEFAULT 0 CHECK (stock >= 0),
   images          JSONB NOT NULL DEFAULT '[]',
+  video           TEXT,
   specs           JSONB NOT NULL DEFAULT '{}',
   rating          NUMERIC(3,2) NOT NULL DEFAULT 0,
   review_count    INTEGER NOT NULL DEFAULT 0,
@@ -113,6 +114,7 @@ CREATE TABLE IF NOT EXISTS banners (
   subtitle_en TEXT NOT NULL DEFAULT '',
   subtitle_ar TEXT NOT NULL DEFAULT '',
   image      TEXT NOT NULL DEFAULT '',
+  video      TEXT,
   link       TEXT NOT NULL DEFAULT '/',
   active     BOOLEAN NOT NULL DEFAULT true,
   sort       INTEGER NOT NULL DEFAULT 0

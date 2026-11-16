@@ -53,6 +53,7 @@ export interface Product {
   categoryId: number;
   stock: number;
   images: string[];
+  video?: string | null;
   specs: Record<string, string>;
   rating: number;
   reviewCount: number;
@@ -128,6 +129,7 @@ export interface Banner {
   subtitleEn: string;
   subtitleAr: string;
   image: string;
+  video?: string | null;
   link: string;
   active: boolean;
   sort: number;

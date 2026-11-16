@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { MediaVideo } from "../components/Media";
 import { ProductGrid } from "../components/ProductCard";
 import { Spinner } from "../components/ui";
 import { useI18n } from "../i18n/I18nProvider";
@@ -57,7 +58,11 @@ export function HomePage() {
       <section aria-label="Hero" className="container-kajok pt-6">
         {hero ? (
           <div className="relative overflow-hidden rounded-lg bg-deep">
-            <img src={hero.image} alt="" className="h-[320px] w-full object-cover opacity-90 sm:h-[420px]" />
+            {hero.video ? (
+              <MediaVideo src={hero.video} poster={hero.image} autoPlay loop className="h-[320px] w-full object-cover sm:h-[420px]" />
+            ) : (
+              <img src={hero.image} alt="" className="h-[320px] w-full object-cover opacity-90 sm:h-[420px]" />
+            )}
             <div className="absolute inset-0 flex items-center">
               <div className="max-w-xl px-6 sm:px-12">
                 <span className="badge-kajok bg-accent/20 text-white">{t("home.heroCta")}</span>
@@ -145,7 +150,11 @@ export function HomePage() {
             <section className="container-kajok mt-12">
               <Link to={banners[1].link} className="block overflow-hidden rounded-lg bg-deep">
                 <div className="relative">
-                  <img src={banners[1].image} alt="" className="h-44 w-full object-cover opacity-80 sm:h-56" />
+                  {banners[1].video ? (
+                    <MediaVideo src={banners[1].video} poster={banners[1].image} autoPlay loop className="h-44 w-full object-cover sm:h-56" />
+                  ) : (
+                    <img src={banners[1].image} alt="" className="h-44 w-full object-cover opacity-80 sm:h-56" />
+                  )}
                   <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
                     <h2 className="text-2xl font-extrabold text-white sm:text-3xl">{pick(banners[1].titleEn, banners[1].titleAr)}</h2>
                     <p className="mt-2 text-sm text-white/85">{pick(banners[1].subtitleEn, banners[1].subtitleAr)}</p>

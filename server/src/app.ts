@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
+import path from "node:path";
 import { env } from "./config/env.js";
 import type { Store } from "./db/store.js";
 import authRoutes from "./routes/auth.routes.js";
@@ -9,6 +10,7 @@ import catalogRoutes from "./routes/catalog.routes.js";
 import couponRoutes from "./routes/coupons.routes.js";
 import orderRoutes from "./routes/orders.routes.js";
 import adminRoutes from "./routes/admin.routes.js";
+import uploadsRouter from "./routes/uploads.routes.js";
 import { errorHandler, notFoundHandler } from "./middleware/error.js";
 
 export function createApp(store: Store): express.Express {
@@ -34,6 +36,10 @@ export function createApp(store: Store): express.Express {
   app.use("/api/coupons", couponRoutes);
   app.use("/api/orders", orderRoutes);
   app.use("/api/admin", adminRoutes);
+  app.use("/api/uploads", uploadsRouter);
+
+  // Uploaded media (product images, promo videos) served statically.
+  app.use("/uploads", express.static(path.resolve(process.cwd(), "uploads"), { maxAge: "7d", fallthrough: true }));
 
   app.use(notFoundHandler);
   app.use(errorHandler);
