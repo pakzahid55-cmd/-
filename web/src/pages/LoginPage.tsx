@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import type { ConfirmationResult } from "firebase/auth";
 import { useI18n } from "../i18n/I18nProvider";
@@ -25,6 +25,16 @@ export function LoginPage() {
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
   const [confirmation, setConfirmation] = useState<ConfirmationResult | null>(null);
+
+  useEffect(
+    () => () => {
+      if (window._kajokRecaptcha) {
+        window._kajokRecaptcha.clear();
+        window._kajokRecaptcha = undefined;
+      }
+    },
+    [],
+  );
 
   const goNext = (role: string) => {
     const next = params.get("next") ?? (role === "admin" ? "/admin" : "/");
