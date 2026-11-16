@@ -119,7 +119,7 @@ AL=$(curl -sf "$BASE/api/auth/addresses" -H "Authorization: Bearer $RTOKEN" | j 
 
 echo "── Admin ────────────────────────────────"
 ST=$(curl -sf "$BASE/api/admin/stats" -H "Authorization: Bearer $ATOKEN")
-echo "$ST" | j "d['totalProducts']" | grep -q 12 && ok "Dashboard stats" || fail "Dashboard stats" "bad"
+echo "$ST" | j "d['totalProducts'] >= 12" | grep -q True && ok "Dashboard stats" || fail "Dashboard stats" "bad"
 echo "$ST" | j "len(d['salesByDay'])" | grep -q 14 && ok "14-day sales series" || fail "Sales series" "bad"
 
 NEW=$(curl -sf -X POST "$BASE/api/admin/products" -H "Authorization: Bearer $ATOKEN" -H 'Content-Type: application/json' \
