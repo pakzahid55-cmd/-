@@ -159,6 +159,8 @@ export const ar: Dict = {
   },
   auth: {
     signIn: "تسجيل الدخول",
+    demoCustomer: "حساب عميل تجريبي",
+    demoAdmin: "لوحة تحكم تجريبية",
     loginTitle: "مرحبًا بعودتك",
     loginSubtitle: "سجّل الدخول إلى حساب كجوك الخاص بك",
     registerTitle: "أنشئ حسابك",

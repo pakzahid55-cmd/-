@@ -157,6 +157,8 @@ export const en = {
   },
   auth: {
     signIn: "Sign In",
+    demoCustomer: "Demo Customer Account",
+    demoAdmin: "Demo Admin Dashboard",
     loginTitle: "Welcome back",
     loginSubtitle: "Sign in to your KAJOK account",
     registerTitle: "Create your account",

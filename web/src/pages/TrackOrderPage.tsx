@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { PageHeader, Spinner } from "../components/ui";
 import { useI18n } from "../i18n/I18nProvider";
@@ -27,14 +27,13 @@ export function TrackOrderPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!ref.trim()) return;
+  const runTrack = async (value: string) => {
+    if (!value.trim()) return;
     setLoading(true);
     setError("");
     setOrder(null);
     try {
-      const res = await api<{ order: TrackedOrder }>(`/orders/track/${encodeURIComponent(ref.trim())}`, { auth: false });
+      const res = await api<{ order: TrackedOrder }>(`/orders/track/${encodeURIComponent(value.trim())}`, { auth: false });
       setOrder(res.order);
       const next = new URLSearchParams();
       next.set("ref", res.order.reference);
@@ -45,6 +44,21 @@ export function TrackOrderPage() {
       setLoading(false);
     }
   };
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await runTrack(ref);
+  };
+
+  // Auto-track when the URL carries ?ref= (e.g. after checkout → "Track it").
+  useEffect(() => {
+    const initial = params.get("ref");
+    if (initial) {
+      setRef(initial);
+      void runTrack(initial);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const stepIndex = order ? STEPS.indexOf(order.status) : -1;
 

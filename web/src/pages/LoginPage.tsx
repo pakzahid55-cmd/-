@@ -59,10 +59,10 @@ export function LoginPage() {
               نسخة عرض تجريبية — الدخول بدون كلمة مرور، والبيانات تُحفظ في متصفحك فقط.
             </p>
             <button type="button" onClick={() => demoLogin("customer")} disabled={loading} className="btn-primary w-full py-3">
-              👤 {t("auth.signIn")} — {t("nav.account")} ({t("common.new")})
+              👤 {t("auth.demoCustomer")}
             </button>
             <button type="button" onClick={() => demoLogin("admin")} disabled={loading} className="btn-secondary w-full py-3">
-              🛡️ {t("nav.admin")}
+              🛡️ {t("auth.demoAdmin")}
             </button>
             {error && <p className="rounded-lg bg-red-50 px-3.5 py-2.5 text-sm text-red-700">{error}</p>}
           </div>
