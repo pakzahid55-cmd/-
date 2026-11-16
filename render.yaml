@@ -1,0 +1,29 @@
+# Render Blueprint — KAJOK real (production) deployment
+# One web service: API + built storefront + uploads in a single Node process.
+services:
+  - type: web
+    name: kajok
+    runtime: node
+    plan: free
+    branch: arena/31fcf83d-repo
+    buildCommand: npm run build
+    startCommand: npm start
+    preDeployCommand: npm run db:schema
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # Set this from your Render PostgreSQL dashboard (Internal Database URL).
+      - key: DATABASE_URL
+        sync: false
+      # Auto-generated strong secret — rotate it from the Render dashboard anytime.
+      - key: JWT_SECRET
+        generateValue: true
+      - key: SHIPPING_FEE
+        value: "5.99"
+      - key: FREE_SHIPPING_OVER
+        value: "150"
+      # Online payments stay disabled until a real provider is connected.
+      # Never simulate successful payments.
+      - key: ONLINE_PAYMENTS_ENABLED
+        value: "false"
