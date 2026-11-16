@@ -7,16 +7,38 @@ import { useWishlist } from "../../store/wishlist";
 import { SearchBar } from "../SearchBar";
 
 export function Logo({ light = false }: { light?: boolean }) {
-  const { t } = useI18n();
   return (
-    <Link to="/" className="flex items-center gap-2.5" aria-label={t("brand.name")}>
-      <svg width="34" height="34" viewBox="0 0 40 40" aria-hidden="true">
-        <rect width="40" height="40" rx="9" fill="#6C3BCE" />
-        <path d="M12 10h4.6v8.2L24.2 10h5.6l-8.4 9.4 8.9 10.6h-5.7l-7-8.4-1.6 1.7V30H12V10z" fill="#fff" />
+    <Link to="/" className="flex items-center gap-2.5" aria-label="KAJOK كجوك">
+      <svg width="42" height="38" viewBox="0 0 70 64" aria-hidden="true">
+        <defs>
+          <linearGradient id="kajokK" x1="1" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor={light ? "#C4B5FD" : "#A78BFA"} />
+            <stop offset="1" stopColor={light ? "#7C4DDB" : "#32145F"} />
+          </linearGradient>
+          <linearGradient id="kajokO" x1="1" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor={light ? "#A78BFA" : "#7C4DDB"} />
+            <stop offset="1" stopColor={light ? "#6C3BCE" : "#4B2591"} />
+          </linearGradient>
+        </defs>
+        <path d="M57 5 Q54 24 24 55 Q35 32 57 5 Z" fill="url(#kajokK)" />
+        <path d="M35 25 Q45 47 67 57 Q57 35 35 25 Z" fill="url(#kajokK)" />
+        <circle cx="21" cy="32" r="13.5" fill="none" stroke="url(#kajokO)" strokeWidth="7" />
+        <circle cx="21" cy="32" r="9.5" fill={light ? "#2A1052" : "#F8F6FC"} />
+        <text
+          x="21"
+          y="38.5"
+          textAnchor="middle"
+          fontFamily="Tajawal, sans-serif"
+          fontWeight="700"
+          fontSize="15"
+          fill={light ? "#F8F6FC" : "#32145F"}
+        >
+          ج
+        </text>
       </svg>
       <div className="leading-tight">
-        <span className={`block text-lg font-extrabold tracking-wide ${light ? "text-white" : "text-deep"}`}>{t("brand.name")}</span>
-        <span className={`block text-[10px] font-medium ${light ? "text-accent" : "text-slate-400"}`}>{t("brand.tagline")}</span>
+        <span className={`block text-lg font-extrabold tracking-wide ${light ? "text-white" : "text-deep"}`}>KAJOK</span>
+        <span className={`block text-[15px] font-extrabold ${light ? "text-accent" : "text-royal"}`}>كجوك</span>
       </div>
     </Link>
   );
