@@ -3,7 +3,8 @@ import { Link, useNavigate } from "react-router-dom";
 import { PageHeader } from "../components/ui";
 import { useI18n } from "../i18n/I18nProvider";
 import { api } from "../lib/api";
-import { formatPrice } from "../lib/format";
+import { formatMoney, formatPrice } from "../lib/format";
+import { useCurrency } from "../store/currency";
 import type { Address, Order } from "../lib/types";
 import { useAuth } from "../store/auth";
 import { cartTotals, useCart } from "../store/cart";
@@ -33,6 +34,7 @@ export function CheckoutPage() {
   const [placing, setPlacing] = useState(false);
   const [error, setError] = useState("");
   const [placedOrder, setPlacedOrder] = useState<Order | null>(null);
+  const { currency, setCurrency, info } = useCurrency();
 
   useEffect(() => {
     if (!user) {
@@ -87,7 +89,10 @@ export function CheckoutPage() {
             <span className="font-bold text-royal">{placedOrder.reference}</span>
           </p>
           <div className="mt-4 rounded-lg bg-surface p-4 text-sm">
-            <p className="font-semibold">{t("common.total")}: {formatPrice(placedOrder.total, lang)}</p>
+            <p className="font-semibold">{t("common.total")}: {formatMoney(placedOrder.total, placedOrder.currency ?? "EGP", lang)}</p>
+            {(placedOrder.currency ?? "EGP") === "SDG" && (
+              <p className="mt-1 text-xs text-slate-500">{t("currency.rateApplied", { rate: placedOrder.exchangeRate })}</p>
+            )}
             <p className="mt-1 text-slate-500">{placedOrder.paymentMethod === "cod" ? t("checkout.cod") : t("checkout.online")}</p>
           </div>
           <div className="mt-6 flex flex-col gap-3">
@@ -122,6 +127,7 @@ export function CheckoutPage() {
           },
           paymentMethod,
           couponCode: couponCode ?? null,
+          currency: currency === "SDG" && info.rate ? "SDG" : "EGP",
         },
       });
       clear();
@@ -211,6 +217,30 @@ export function CheckoutPage() {
                   className="input-kajok resize-none"
                 />
               </div>
+            </div>
+          </div>
+
+          <div className="card-kajok p-6">
+            <h2 className="text-lg font-bold">{t("currency.title")}</h2>
+            <div className="mt-4 grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setCurrency("EGP")}
+                className={`rounded-lg border p-4 text-start transition-colors ${currency === "EGP" ? "border-royal bg-surface" : "border-line hover:border-slate-300"}`}
+              >
+                <span className="block font-semibold">🇪🇬 {t("currency.egp")}</span>
+                <span className="text-xs text-slate-500">{t("currency.default")}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => info.rate && setCurrency("SDG")}
+                disabled={!info.rate}
+                title={info.rate ? undefined : t("currency.noRate")}
+                className={`rounded-lg border p-4 text-start transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${currency === "SDG" && info.rate ? "border-royal bg-surface" : "border-line hover:border-slate-300"}`}
+              >
+                <span className="block font-semibold">🇸🇩 {t("currency.sdg")}</span>
+                <span className="text-xs text-slate-500">{info.rate ? `1 ${t("currency.egp")} = ${info.rate} ${t("currency.sdg")}` : t("currency.noRate")}</span>
+              </button>
             </div>
           </div>
 

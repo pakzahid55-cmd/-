@@ -88,6 +88,9 @@ export interface OrderItem {
 
 export type OrderStatus = "pending" | "processing" | "shipped" | "delivered" | "cancelled";
 
+/** Supported shop currencies. Catalog prices are EGP-based; orders snapshot their currency + rate. */
+export type Currency = "EGP" | "SDG";
+
 export interface Order {
   id: number;
   reference: string;
@@ -101,6 +104,10 @@ export interface Order {
   paymentMethod: "cod" | "online";
   paymentStatus: string;
   status: OrderStatus;
+  /** Currency the customer pays in — preserved forever, never changed silently. */
+  currency: Currency;
+  /** Rate applied at purchase (1 EGP = exchangeRate SDG; 1 for EGP orders). */
+  exchangeRate: number;
   customer: {
     name: string;
     phone: string;

@@ -33,6 +33,7 @@ const AdminOrdersPage = lazy(() => import("./pages/admin/AdminOrdersPage").then(
 const AdminCustomersPage = lazy(() => import("./pages/admin/AdminCustomersPage").then((m) => ({ default: m.AdminCustomersPage })));
 const AdminCouponsPage = lazy(() => import("./pages/admin/AdminCouponsPage").then((m) => ({ default: m.AdminCouponsPage })));
 const AdminBannersPage = lazy(() => import("./pages/admin/AdminBannersPage").then((m) => ({ default: m.AdminBannersPage })));
+const AdminCurrencyPage = lazy(() => import("./pages/admin/AdminCurrencyPage").then((m) => ({ default: m.AdminCurrencyPage })));
 
 function NotFoundPage() {
   return (
@@ -83,6 +84,7 @@ export default function App() {
             <Route path="customers" element={<AdminCustomersPage />} />
             <Route path="coupons" element={<AdminCouponsPage />} />
             <Route path="banners" element={<AdminBannersPage />} />
+            <Route path="currency" element={<AdminCurrencyPage />} />
           </Route>
           <Route path="*" element={<NotFoundPage />} />
         </Route>

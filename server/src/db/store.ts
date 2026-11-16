@@ -5,6 +5,7 @@ import type {
   Brand,
   Category,
   Coupon,
+  ExchangeRate,
   Order,
   OrderStatus,
   Paged,
@@ -86,4 +87,8 @@ export interface Store {
 
   // Reporting
   adminStats(): Promise<AdminStats>;
+
+  // Exchange rates (manually entered, auditable history — never fabricated)
+  listExchangeRates(): Promise<ExchangeRate[]>;
+  addExchangeRate(rate: Omit<ExchangeRate, "id">): Promise<ExchangeRate>;
 }

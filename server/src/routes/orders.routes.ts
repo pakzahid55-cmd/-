@@ -4,7 +4,7 @@ import { asyncHandler, validateBody } from "../lib/validate.js";
 import { requireAuth } from "../middleware/auth.js";
 import { HttpError } from "../middleware/error.js";
 import { env } from "../config/env.js";
-import type { OrderItem } from "../db/types.js";
+import type { ExchangeRate, OrderItem } from "../db/types.js";
 
 const router = Router();
 
@@ -20,6 +20,7 @@ const orderSchema = z.object({
   }),
   paymentMethod: z.enum(["cod", "online"]),
   couponCode: z.string().max(20).nullable().optional(),
+  currency: z.enum(["EGP", "SDG"]).default("EGP"),
 });
 
 function makeReference(): string {
@@ -33,6 +34,20 @@ router.post(
   asyncHandler(async (req, res) => {
     const store = req.app.locals.store;
     const { items, customer, paymentMethod, couponCode } = req.body;
+    const currency: "EGP" | "SDG" = req.body.currency;
+
+    // Currency: prices are stored in EGP. SDG orders snapshot the manually
+    // entered rate at purchase time. If no rate is configured, refuse SDG —
+    // never fabricate an exchange rate.
+    let exchangeRate = 1;
+    if (currency === "SDG") {
+      const history = await store.listExchangeRates();
+      const current = history.find((r: ExchangeRate) => r.base === "EGP" && r.quote === "SDG");
+      if (!current) {
+        throw new HttpError(400, "The SDG exchange rate has not been configured yet. Please order in EGP.");
+      }
+      exchangeRate = current.rate;
+    }
 
     // Online payments are prepared for future activation only.
     // Never simulate a successful payment without a real payment provider.
@@ -42,14 +57,18 @@ router.post(
 
     const orderItems: OrderItem[] = [];
     let subtotal = 0;
+    let subtotalEgp = 0;
     for (const item of items) {
       const product = await store.getProductById(item.productId);
       if (!product) throw new HttpError(400, `Product #${item.productId} not found`);
       if (product.stock < item.quantity) {
         throw new HttpError(400, `Only ${product.stock} left in stock for "${product.nameEn}"`);
       }
-      const price = product.discountPrice ?? product.price;
+      const priceEgp = product.discountPrice ?? product.price;
+      // Convert to the order currency using the purchase-time rate (snapshotted on the order).
+      const price = currency === "SDG" ? Math.round(priceEgp * exchangeRate * 100) / 100 : priceEgp;
       subtotal += price * item.quantity;
+      subtotalEgp += priceEgp * item.quantity;
       orderItems.push({
         productId: product.id,
         slug: product.slug,
@@ -62,6 +81,7 @@ router.post(
     }
 
     let discount = 0;
+    let discountEgp = 0;
     let appliedCoupon: string | null = null;
     if (couponCode) {
       const coupon = await store.getCouponByCode(couponCode);
@@ -69,14 +89,18 @@ router.post(
         coupon &&
         coupon.active &&
         (!coupon.expiresAt || new Date(coupon.expiresAt).getTime() >= Date.now()) &&
-        subtotal >= coupon.minOrder;
+        subtotalEgp >= coupon.minOrder;
       if (!valid) throw new HttpError(400, "The coupon code is invalid or does not apply to this order");
-      discount = coupon!.type === "percent" ? Math.round(subtotal * coupon!.value) / 100 : coupon!.value;
+      // Coupons are defined in EGP — evaluate in EGP, then convert to the order currency.
+      discountEgp = coupon!.type === "percent" ? Math.round(subtotalEgp * coupon!.value) / 100 : coupon!.value;
+      discountEgp = Math.min(discountEgp, subtotalEgp);
+      discount = currency === "SDG" ? Math.round(discountEgp * exchangeRate * 100) / 100 : discountEgp;
       discount = Math.min(discount, subtotal);
       appliedCoupon = coupon!.code;
     }
 
-    const shipping = subtotal - discount >= env.freeShippingOver ? 0 : env.shippingFee;
+    const freeShipping = subtotalEgp - discountEgp >= env.freeShippingOver;
+    const shipping = freeShipping ? 0 : currency === "SDG" ? Math.round(env.shippingFee * exchangeRate * 100) / 100 : env.shippingFee;
     const total = Math.round((subtotal - discount + shipping) * 100) / 100;
 
     const order = await store.createOrder({
@@ -91,6 +115,8 @@ router.post(
       paymentMethod,
       paymentStatus: "pending",
       status: "pending",
+      currency,
+      exchangeRate,
       customer: { ...customer, instructions: customer.instructions ?? null },
     });
     res.status(201).json({ order });

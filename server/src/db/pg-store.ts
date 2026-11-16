@@ -6,6 +6,7 @@ import type {
   Brand,
   Category,
   Coupon,
+  ExchangeRate,
   Order,
   OrderStatus,
   Paged,
@@ -89,6 +90,8 @@ export class PgStore implements Store {
       paymentMethod: r.payment_method,
       paymentStatus: r.payment_status,
       status: r.status,
+      currency: r.currency ?? "EGP",
+      exchangeRate: Number(r.exchange_rate ?? 1),
       customer: r.customer ?? {},
       createdAt: new Date(r.created_at).toISOString(),
       updatedAt: new Date(r.updated_at).toISOString(),
@@ -344,9 +347,9 @@ export class PgStore implements Store {
     try {
       await client.query("BEGIN");
       const rows = await client.query(
-        `INSERT INTO orders (reference, user_id, items, subtotal, discount, shipping, total, coupon_code, payment_method, payment_status, status, customer)
-         VALUES ($1,$2,$3::jsonb,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb) RETURNING *`,
-        [data.reference, data.userId, JSON.stringify(data.items), data.subtotal, data.discount, data.shipping, data.total, data.couponCode, data.paymentMethod, data.paymentStatus, data.status, JSON.stringify(data.customer)],
+        `INSERT INTO orders (reference, user_id, items, subtotal, discount, shipping, total, coupon_code, payment_method, payment_status, status, currency, exchange_rate, customer)
+         VALUES ($1,$2,$3::jsonb,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14::jsonb) RETURNING *`,
+        [data.reference, data.userId, JSON.stringify(data.items), data.subtotal, data.discount, data.shipping, data.total, data.couponCode, data.paymentMethod, data.paymentStatus, data.status, data.currency, data.exchangeRate, JSON.stringify(data.customer)],
       );
       for (const item of data.items) {
         await client.query("UPDATE products SET stock = GREATEST(0, stock - $1), sales_count = sales_count + $1 WHERE id = $2", [item.quantity, item.productId]);
@@ -475,14 +478,14 @@ export class PgStore implements Store {
 
   // ---------- Reporting ----------
   async adminStats(): Promise<AdminStats> {
-    const revenue = await this.q<{ total: string }>("SELECT COALESCE(SUM(total),0)::text AS total FROM orders WHERE status <> 'cancelled'");
+    const revenue = await this.q<{ total: string }>("SELECT COALESCE(SUM(total / NULLIF(exchange_rate,0)),0)::text AS total FROM orders WHERE status <> 'cancelled'");
     const orders = await this.q<{ count: string }>("SELECT COUNT(*)::text AS count FROM orders");
     const customers = await this.q<{ count: string }>("SELECT COUNT(*)::text AS count FROM users WHERE role = 'customer'");
     const products = await this.q<{ count: string }>("SELECT COUNT(*)::text AS count FROM products");
     const pending = await this.q<{ count: string }>("SELECT COUNT(*)::text AS count FROM orders WHERE status = 'pending'");
     const lowStock = await this.q<{ count: string }>("SELECT COUNT(*)::text AS count FROM products WHERE stock <= 10");
     const sales = await this.q<{ date: string; orders: string; revenue: string }>(
-      `SELECT to_char(created_at, 'YYYY-MM-DD') AS date, COUNT(*)::text AS orders, COALESCE(SUM(total),0)::text AS revenue
+      `SELECT to_char(created_at, 'YYYY-MM-DD') AS date, COUNT(*)::text AS orders, COALESCE(SUM(total / NULLIF(exchange_rate,0)),0)::text AS revenue
        FROM orders WHERE status <> 'cancelled' AND created_at >= now() - interval '14 days'
        GROUP BY 1 ORDER BY 1`,
     );
@@ -509,6 +512,37 @@ export class PgStore implements Store {
       lowStock: Number(lowStock[0]?.count ?? 0),
       salesByDay: days,
       recentOrders: recent.map((r) => this.mapOrder(r)),
+    };
+  }
+
+  // ---------- Exchange rates (manual, history preserved) ----------
+  async listExchangeRates(): Promise<ExchangeRate[]> {
+    const rows = (await this.q("SELECT * FROM exchange_rates ORDER BY id DESC")) as Record<string, any>[];
+    return rows.map((r) => ({
+      id: Number(r.id),
+      base: r.base,
+      quote: r.quote,
+      rate: Number(r.rate),
+      note: r.note ?? null,
+      createdBy: r.created_by ?? null,
+      createdAt: new Date(r.created_at).toISOString(),
+    }));
+  }
+  async addExchangeRate(rate: Omit<ExchangeRate, "id">): Promise<ExchangeRate> {
+    const rows = await this.q(
+      `INSERT INTO exchange_rates (base, quote, rate, note, created_by)
+       VALUES ($1,$2,$3,$4,$5) RETURNING *`,
+      [rate.base, rate.quote, rate.rate, rate.note, rate.createdBy],
+    );
+    const r = rows[0] as Record<string, any>;
+    return {
+      id: Number(r.id),
+      base: r.base,
+      quote: r.quote,
+      rate: Number(r.rate),
+      note: r.note ?? null,
+      createdBy: r.created_by ?? null,
+      createdAt: new Date(r.created_at).toISOString(),
     };
   }
 }

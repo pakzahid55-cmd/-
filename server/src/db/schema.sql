@@ -94,9 +94,26 @@ CREATE TABLE IF NOT EXISTS orders (
   payment_method TEXT NOT NULL DEFAULT 'cod' CHECK (payment_method IN ('cod','online')),
   payment_status TEXT NOT NULL DEFAULT 'pending' CHECK (payment_status IN ('pending','paid','failed')),
   status         TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','processing','shipped','delivered','cancelled')),
+  currency       TEXT NOT NULL DEFAULT 'EGP' CHECK (currency IN ('EGP','SDG')),
+  exchange_rate  NUMERIC(12,4) NOT NULL DEFAULT 1,
   customer       JSONB NOT NULL DEFAULT '{}',
   created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Additive migrations for databases created before these columns existed
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS currency      TEXT NOT NULL DEFAULT 'EGP';
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS exchange_rate NUMERIC(12,4) NOT NULL DEFAULT 1;
+
+-- Manually entered exchange rates. History is preserved; the rate is NEVER fabricated.
+CREATE TABLE IF NOT EXISTS exchange_rates (
+  id         BIGSERIAL PRIMARY KEY,
+  base       TEXT NOT NULL DEFAULT 'EGP' CHECK (base IN ('EGP','SDG')),
+  quote      TEXT NOT NULL DEFAULT 'SDG' CHECK (quote IN ('EGP','SDG')),
+  rate       NUMERIC(12,4) NOT NULL CHECK (rate > 0),
+  note       TEXT,
+  created_by TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 CREATE INDEX IF NOT EXISTS idx_orders_user ON orders(user_id);

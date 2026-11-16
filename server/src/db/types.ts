@@ -79,6 +79,20 @@ export interface Review {
 
 export type OrderStatus = "pending" | "processing" | "shipped" | "delivered" | "cancelled";
 
+/** Supported shop currencies. Prices are entered in EGP (base); SDG uses the manual admin rate. */
+export type Currency = "EGP" | "SDG";
+
+/** Manually entered exchange rate (1 EGP = rate SDG). Full history is preserved; never fabricated. */
+export interface ExchangeRate {
+  id: number;
+  base: Currency;
+  quote: Currency;
+  rate: number;
+  note: string | null;
+  createdBy: string | null;
+  createdAt: string;
+}
+
 export interface OrderItem {
   productId: number;
   slug: string;
@@ -111,6 +125,10 @@ export interface Order {
   paymentMethod: "cod" | "online";
   paymentStatus: "pending" | "paid" | "failed";
   status: OrderStatus;
+  /** Currency the customer pays in. Never changed silently after purchase. */
+  currency: Currency;
+  /** Rate applied at purchase time (1 EGP = exchangeRate SDG; 1 for EGP orders). Preserved forever. */
+  exchangeRate: number;
   customer: OrderCustomer;
   createdAt: string;
   updatedAt: string;

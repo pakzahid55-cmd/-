@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { PageHeader, Spinner } from "../../components/ui";
 import { useI18n } from "../../i18n/I18nProvider";
 import { api } from "../../lib/api";
-import { formatDate, formatPrice } from "../../lib/format";
+import { formatDate, formatMoney, formatPrice } from "../../lib/format";
 import type { AdminStats } from "../../lib/types";
 import { StatusBadge } from "../OrdersPage";
 
@@ -86,7 +86,7 @@ export function AdminDashboardPage() {
                   <td className="px-6 py-3">{o.customer.name}</td>
                   <td className="px-6 py-3 text-slate-500">{formatDate(o.createdAt, lang)}</td>
                   <td className="px-6 py-3"><StatusBadge status={o.status} /></td>
-                  <td className="px-6 py-3 font-semibold">{formatPrice(o.total, lang)}</td>
+                  <td className="px-6 py-3 font-semibold">{formatMoney(o.total, o.currency ?? "EGP", lang)}</td>
                 </tr>
               ))}
             </tbody>

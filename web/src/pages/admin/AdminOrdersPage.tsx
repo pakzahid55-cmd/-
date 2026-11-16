@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { PageHeader, Spinner } from "../../components/ui";
 import { useI18n } from "../../i18n/I18nProvider";
 import { api } from "../../lib/api";
-import { formatDate, formatPrice } from "../../lib/format";
+import { formatDate, formatMoney } from "../../lib/format";
 import type { Order, OrderStatus } from "../../lib/types";
 import { StatusBadge } from "../OrdersPage";
 
@@ -93,7 +93,7 @@ export function AdminOrdersPage() {
                       ))}
                     </ul>
                   </td>
-                  <td className="px-5 py-3 font-semibold">{formatPrice(o.total, lang)}</td>
+                  <td className="px-5 py-3 font-semibold">{formatMoney(o.total, o.currency ?? "EGP", lang)}</td>
                   <td className="px-5 py-3"><StatusBadge status={o.status} /></td>
                   <td className="px-5 py-3">
                     <select

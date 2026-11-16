@@ -8,6 +8,7 @@ import type {
   Brand,
   Category,
   Coupon,
+  ExchangeRate,
   Order,
   OrderStatus,
   Paged,
@@ -43,6 +44,7 @@ interface DbShape {
   orders: Order[];
   coupons: Coupon[];
   banners: Banner[];
+  exchangeRates: ExchangeRate[];
   counters: Record<string, number>;
 }
 
@@ -60,6 +62,7 @@ export class MemoryStore implements Store {
   async init(): Promise<void> {
     if (fs.existsSync(DATA_FILE)) {
       this.db = JSON.parse(fs.readFileSync(DATA_FILE, "utf-8")) as DbShape;
+      this.db.exchangeRates ??= [];
       return;
     }
     this.db = {
@@ -72,7 +75,8 @@ export class MemoryStore implements Store {
       orders: [],
       coupons: [],
       banners: [],
-      counters: { users: 0, addresses: 0, categories: 0, brands: 0, products: 0, reviews: 0, orders: 100000, coupons: 0, banners: 0 },
+      exchangeRates: [],
+      counters: { users: 0, addresses: 0, categories: 0, brands: 0, products: 0, reviews: 0, orders: 100000, coupons: 0, banners: 0, exchange_rates: 0 },
     };
     await this.seed();
     this.save();
@@ -489,11 +493,11 @@ export class MemoryStore implements Store {
       const point = days.find((p) => p.date === date);
       if (point) {
         point.orders += 1;
-        point.revenue += order.total;
+        point.revenue += order.total / (Number(order.exchangeRate) || 1);
       }
     }
     return {
-      totalRevenue: this.db.orders.filter((o) => o.status !== "cancelled").reduce((s, o) => s + o.total, 0),
+      totalRevenue: this.db.orders.filter((o) => o.status !== "cancelled").reduce((s, o) => s + o.total / (Number(o.exchangeRate) || 1), 0),
       totalOrders: this.db.orders.length,
       totalCustomers: this.db.users.filter((u) => u.role === "customer").length,
       totalProducts: this.db.products.length,
@@ -505,5 +509,17 @@ export class MemoryStore implements Store {
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
         .slice(0, 5),
     };
+  }
+
+  async listExchangeRates(): Promise<ExchangeRate[]> {
+    return (this.db.exchangeRates ?? []).slice().sort((a, b) => b.id - a.id);
+  }
+
+  async addExchangeRate(rate: Omit<ExchangeRate, "id">): Promise<ExchangeRate> {
+    this.db.exchangeRates ??= [];
+    const row: ExchangeRate = { ...rate, id: this.nextId("exchange_rates") };
+    this.db.exchangeRates.push(row);
+    this.save();
+    return row;
   }
 }

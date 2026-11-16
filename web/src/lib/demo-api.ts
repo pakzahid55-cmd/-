@@ -46,6 +46,7 @@ interface DemoState {
   brands: Brand[];
   coupons: Coupon[];
   banners: Banner[];
+  exchangeRates: { id: number; base: "EGP"; quote: "SDG"; rate: number; note: string | null; createdBy: string | null; createdAt: string }[];
   counters: Record<string, number>;
 }
 
@@ -69,6 +70,7 @@ function initialState(): DemoState {
         ],
         subtotal: 299.97, discount: 0, shipping: 0, total: 299.97,
         couponCode: null, paymentMethod: "cod", paymentStatus: "pending", status: "delivered",
+        currency: "EGP", exchangeRate: 1,
         customer: { name: "Sara Hassan", phone: "+201000000002", country: "Egypt", city: "Alexandria", address: "12 Corniche Road, Smouha", instructions: null },
         createdAt: new Date(Date.now() - 6 * 86400000).toISOString(), updatedAt: new Date().toISOString(),
       },
@@ -98,6 +100,7 @@ function initialState(): DemoState {
     brands: data.brands.map((b) => ({ ...b })),
     coupons: data.coupons.map((c) => ({ ...c })),
     banners: data.banners.map((b) => ({ ...b })),
+    exchangeRates: [],
     counters: { users: 2, addresses: 1, orders: 1, reviews: 0 },
   };
 }
@@ -186,6 +189,27 @@ export async function demoApi<T>(path: string, options: { method?: string; body?
   const user = currentUser(token);
   const [cleanPath, queryStr] = path.split("?");
   const q = Object.fromEntries(new URLSearchParams(queryStr ?? "")) as Record<string, string | undefined>;
+
+  // ---------- currency (manual exchange rate — never fabricated) ----------
+  if (cleanPath === "/currency" && method === "GET") {
+    const list = state.exchangeRates ?? [];
+    const current = list.length ? list[list.length - 1] : null;
+    return { base: "EGP", quote: "SDG", rate: current ? current.rate : null, updatedAt: current ? current.createdAt : null, source: current ? "manual" : null } as T;
+  }
+  if (cleanPath === "/currency" && method === "POST") {
+    if (!user || user.role !== "admin") throw new DemoError(user ? 403 : 401, user ? "Insufficient permissions" : "Authentication required");
+    const rate = Number(body.rate);
+    if (!(rate > 0)) throw new DemoError(400, "Rate must be a positive number");
+    state.exchangeRates ??= [];
+    const row = { id: state.exchangeRates.length + 1, base: "EGP" as const, quote: "SDG" as const, rate, note: body.note ?? null, createdBy: user.email, createdAt: new Date().toISOString() };
+    state.exchangeRates.push(row);
+    save();
+    return { rate: row } as T;
+  }
+  if (cleanPath === "/currency/history" && method === "GET") {
+    if (!user || user.role !== "admin") throw new DemoError(user ? 403 : 401, user ? "Insufficient permissions" : "Authentication required");
+    return { items: [...(state.exchangeRates ?? [])].reverse() } as T;
+  }
 
   // ---------- auth ----------
   if (cleanPath === "/auth/login" && method === "POST") {
@@ -317,27 +341,41 @@ export async function demoApi<T>(path: string, options: { method?: string; body?
   if (cleanPath === "/orders" && method === "POST") {
     if (!user) throw new DemoError(401, "Authentication required");
     if (body?.paymentMethod === "online") throw new DemoError(400, "Online payment is not yet activated. Please choose Cash on Delivery.");
+    const currency: "EGP" | "SDG" = body.currency === "SDG" ? "SDG" : "EGP";
+    let exchangeRate = 1;
+    if (currency === "SDG") {
+      const list = state.exchangeRates ?? [];
+      const current = list.length ? list[list.length - 1] : null;
+      if (!current) throw new DemoError(400, "The SDG exchange rate has not been configured yet. Please order in EGP.");
+      exchangeRate = current.rate;
+    }
     const items: OrderItem[] = [];
     let subtotal = 0;
+    let subtotalEgp = 0;
     for (const it of body.items as { productId: number; quantity: number }[]) {
       const p = state.products.find((x) => x.id === it.productId);
       if (!p) throw new DemoError(400, `Product #${it.productId} not found`);
       if (p.stock < it.quantity) throw new DemoError(400, `Only ${p.stock} left in stock for "${p.nameEn}"`);
-      const price = priceOf(p);
+      const priceEgp = priceOf(p);
+      const price = currency === "SDG" ? Math.round(priceEgp * exchangeRate * 100) / 100 : priceEgp;
       subtotal += price * it.quantity;
+      subtotalEgp += priceEgp * it.quantity;
       items.push({ productId: p.id, slug: p.slug, nameEn: p.nameEn, nameAr: p.nameAr, image: p.images[0] ?? "", price, quantity: it.quantity });
       p.stock -= it.quantity;
       p.salesCount += it.quantity;
     }
     let discount = 0;
+    let discountEgp = 0;
     let couponCode: string | null = null;
     if (body.couponCode) {
       const c = state.coupons.find((x) => x.code.toLowerCase() === body.couponCode.toLowerCase());
-      if (!c || !c.active || subtotal < c.minOrder) throw new DemoError(400, "The coupon code is invalid or does not apply to this order");
-      discount = Math.min(c.type === "percent" ? Math.round(subtotal * c.value) / 100 : c.value, subtotal);
+      if (!c || !c.active || subtotalEgp < c.minOrder) throw new DemoError(400, "The coupon code is invalid or does not apply to this order");
+      discountEgp = Math.min(c.type === "percent" ? Math.round(subtotalEgp * c.value) / 100 : c.value, subtotalEgp);
+      discount = currency === "SDG" ? Math.round(discountEgp * exchangeRate * 100) / 100 : discountEgp;
+      discount = Math.min(discount, subtotal);
       couponCode = c.code;
     }
-    const shipping = subtotal - discount >= 150 ? 0 : 5.99;
+    const shipping = Math.round((subtotalEgp - discountEgp >= 150 ? 0 : 5.99) * (currency === "SDG" ? exchangeRate : 1) * 100) / 100;
     const order: Order = {
       id: nextId("orders"),
       reference: `KJ-${Math.floor(100000 + Math.random() * 900000)}`,
@@ -351,6 +389,8 @@ export async function demoApi<T>(path: string, options: { method?: string; body?
       paymentMethod: "cod",
       paymentStatus: "pending",
       status: "pending",
+      currency,
+      exchangeRate,
       customer: { ...(body.customer ?? {}), instructions: body.customer?.instructions ?? null },
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -395,10 +435,10 @@ export async function demoApi<T>(path: string, options: { method?: string; body?
       for (const o of state.orders) {
         if (o.status === "cancelled") continue;
         const point = days.find((p) => p.date === o.createdAt.slice(0, 10));
-        if (point) { point.orders += 1; point.revenue += o.total; }
+        if (point) { point.orders += 1; point.revenue += o.total / (Number(o.exchangeRate) || 1); }
       }
       return {
-        totalRevenue: state.orders.filter((o) => o.status !== "cancelled").reduce((s, o) => s + o.total, 0),
+        totalRevenue: state.orders.filter((o) => o.status !== "cancelled").reduce((s, o) => s + o.total / (Number(o.exchangeRate) || 1), 0),
         totalOrders: state.orders.length,
         totalCustomers: state.users.filter((u) => u.role === "customer").length,
         totalProducts: state.products.length,

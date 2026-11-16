@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { EmptyState, PageHeader, Spinner } from "../components/ui";
 import { useI18n } from "../i18n/I18nProvider";
 import { api } from "../lib/api";
-import { formatDate, formatPrice } from "../lib/format";
+import { formatDate, formatMoney } from "../lib/format";
 import type { Order, OrderStatus } from "../lib/types";
 import { useAuth } from "../store/auth";
 
@@ -77,7 +77,10 @@ export function OrdersPage() {
                 <div className="ms-auto flex items-center gap-4">
                   <div className="text-end">
                     <p className="text-xs text-slate-400">{t("orders.total")}</p>
-                    <p className="font-bold">{formatPrice(o.total, lang)}</p>
+                    <p className="font-bold">{formatMoney(o.total, o.currency ?? "EGP", lang)}</p>
+                    {(o.currency ?? "EGP") === "SDG" && (
+                      <p className="text-[11px] text-slate-400">{t("currency.rateApplied", { rate: o.exchangeRate })}</p>
+                    )}
                   </div>
                   <span className={`transition-transform ${expanded === o.id ? "rotate-180" : ""}`}>⌄</span>
                 </div>
@@ -93,7 +96,7 @@ export function OrdersPage() {
                           {pick(i.nameEn, i.nameAr)}
                         </Link>
                         <span className="text-sm text-slate-500">× {i.quantity}</span>
-                        <span className="text-sm font-semibold">{formatPrice(i.price * i.quantity, lang)}</span>
+                        <span className="text-sm font-semibold">{formatMoney(i.price * i.quantity, o.currency ?? "EGP", lang)}</span>
                       </li>
                     ))}
                   </ul>

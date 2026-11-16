@@ -36,6 +36,7 @@ export function AdminLayout() {
     { to: "/admin/customers", label: t("admin.customers"), icon: "M17 20h5v-2a4 4 0 00-3-3.9M9 20H4v-2a4 4 0 013-3.9m6-3.1a4 4 0 10-4-4 4 4 0 004 4z" },
     { to: "/admin/coupons", label: t("admin.coupons"), icon: "M7 7h10v4a2 2 0 110 4v4H7v-4a2 2 0 110-4V7z" },
     { to: "/admin/banners", label: t("admin.banners"), icon: "M4 5h16v10H4zM4 19h16" },
+    { to: "/admin/currency", label: t("admin.exchangeRate"), icon: "M12 8c-2.2 0-4 1-4 2.5S9.8 13 12 13s4 1 4 2.5-1.8 2.5-4 2.5m0-10V6m0 12v-2m8-6H4" },
   ];
 
   return (

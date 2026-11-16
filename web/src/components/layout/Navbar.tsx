@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { useI18n } from "../../i18n/I18nProvider";
 import { useAuth } from "../../store/auth";
+import { useCurrency } from "../../store/currency";
 import { cartTotals, useCart } from "../../store/cart";
 import { useWishlist } from "../../store/wishlist";
 import { SearchBar } from "../SearchBar";
@@ -46,6 +47,10 @@ export function Logo({ light = false }: { light?: boolean }) {
 
 export function Navbar() {
   const { t, toggleLang, lang } = useI18n();
+  const { currency, setCurrency, info } = useCurrency();
+  useEffect(() => {
+    void useCurrency.getState().refresh();
+  }, []);
   const { user, logout } = useAuth();
   const { items } = useCart();
   const wishlistItems = useWishlist((s) => s.items);
@@ -75,6 +80,16 @@ export function Navbar() {
             <Link to="/orders/track" className="hover:text-accent">
               {t("nav.trackOrder")}
             </Link>
+            <button
+              type="button"
+              onClick={() => setCurrency(currency === "EGP" ? "SDG" : "EGP")}
+              disabled={!info.rate}
+              className="font-semibold hover:text-accent disabled:cursor-not-allowed disabled:opacity-60"
+              title={info.rate ? t("currency.switch") : t("currency.noRate")}
+              aria-label={t("currency.switch")}
+            >
+              {currency === "SDG" ? "🇸🇩 ج.س" : "🇪🇬 ج.م"}
+            </button>
             <button type="button" onClick={toggleLang} className="font-semibold hover:text-accent" aria-label={t("nav.language")}>
               {t("nav.language")}
             </button>

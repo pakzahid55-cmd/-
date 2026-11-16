@@ -163,6 +163,21 @@ CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$BASE/api/auth/firebase" 
 CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$BASE/api/auth/firebase" -H 'Content-Type: application/json' -d '{}')
 [ "$CODE" = "400" ] && ok "Missing Firebase idToken rejected (400)" || fail "Firebase body validation" "$CODE"
 
+echo ""
+echo "─── Currency & Exchange Rate ───────────────"
+CODE=$(curl -s -o /dev/null -w "%{http_code}" "$BASE/api/currency")
+[ "$CODE" = "200" ] && ok "Public currency endpoint (200)" || fail "Currency endpoint" "$CODE"
+CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$BASE/api/currency" -H "Authorization: Bearer $RTOKEN" -H 'Content-Type: application/json' -d '{"rate":2500}')
+[ "$CODE" = "403" ] && ok "Customer cannot set exchange rate (403)" || fail "Currency authz" "$CODE"
+CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$BASE/api/currency" -H "Authorization: Bearer $ATOKEN" -H 'Content-Type: application/json' -d '{"rate":3000,"note":"e2e manual rate"}')
+[ "$CODE" = "201" ] && ok "Admin sets manual rate (201)" || fail "Currency admin set" "$CODE"
+RATE=$(curl -s "$BASE/api/currency")
+echo "$RATE" | grep -q '"rate":3000' && ok "Current rate = manually entered value" || fail "Currency rate value" "$RATE"
+echo "$RATE" | grep -q '"updatedAt":"20' && ok "Rate carries last-update timestamp" || fail "Currency timestamp" "$RATE"
+RESP=$(curl -s -X POST "$BASE/api/orders" -H "Authorization: Bearer $RTOKEN" -H 'Content-Type: application/json' -d '{"items":[{"productId":1,"quantity":1}],"customer":{"name":"Rate Test","phone":"1234567","country":"Egypt","city":"Cairo","address":"Test address 123"},"paymentMethod":"cod","currency":"SDG"}')
+echo "$RESP" | grep -q '"currency":"SDG"' && ok "SDG order snapshots its currency" || fail "SDG order currency" "$RESP"
+echo "$RESP" | grep -q '"exchangeRate":3000' && ok "SDG order snapshots the applied rate" || fail "SDG order rate" "$RESP"
+
 echo "─────────────────────────────────────────"
 echo "PASSED: $PASS   FAILED: $FAIL"
 [ "$FAIL" -eq 0 ] && echo "ALL TESTS PASSED" || echo "SOME TESTS FAILED"
