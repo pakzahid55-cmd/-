@@ -3,13 +3,17 @@
 -- Apply with: npm run db:schema --workspace=server (requires DATABASE_URL)
 
 CREATE TABLE IF NOT EXISTS users (
-  id            BIGSERIAL PRIMARY KEY,
-  name          TEXT NOT NULL,
-  email         TEXT NOT NULL UNIQUE,
-  password_hash TEXT NOT NULL,
-  role          TEXT NOT NULL DEFAULT 'customer' CHECK (role IN ('customer','admin')),
-  phone         TEXT,
-  created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+  id             BIGSERIAL PRIMARY KEY,
+  name           TEXT NOT NULL,
+  email          TEXT NOT NULL UNIQUE,
+  password_hash  TEXT NOT NULL,
+  role           TEXT NOT NULL DEFAULT 'customer' CHECK (role IN ('customer','seller','admin')),
+  phone          TEXT,
+  firebase_uid   TEXT UNIQUE,
+  photo_url      TEXT,
+  country        TEXT,
+  email_verified BOOLEAN NOT NULL DEFAULT false,
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 CREATE TABLE IF NOT EXISTS addresses (

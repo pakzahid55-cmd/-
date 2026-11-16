@@ -1,4 +1,4 @@
-export type Role = "customer" | "admin";
+export type Role = "customer" | "seller" | "admin";
 
 export interface User {
   id: number;
@@ -7,6 +7,10 @@ export interface User {
   passwordHash: string;
   role: Role;
   phone: string | null;
+  firebaseUid?: string | null;
+  photoUrl?: string | null;
+  country?: string | null;
+  emailVerified?: boolean;
   createdAt: string;
 }
 

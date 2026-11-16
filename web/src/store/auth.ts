@@ -7,6 +7,7 @@ interface AuthState {
   initialized: boolean;
   initialize: () => Promise<void>;
   login: (email: string, password: string) => Promise<PublicUser>;
+  loginWithFirebase: (idToken: string) => Promise<PublicUser>;
   loginDemo: (demoAs: "customer" | "admin") => Promise<PublicUser>;
   register: (data: { name: string; email: string; password: string; phone?: string }) => Promise<PublicUser>;
   logout: () => void;
@@ -36,6 +37,18 @@ export const useAuth = create<AuthState>((set) => ({
     const { token, user } = await api<{ token: string; user: PublicUser }>("/auth/login", {
       method: "POST",
       body: { email, password },
+      auth: false,
+    });
+    setToken(token);
+    set({ user });
+    return user;
+  },
+
+  /** Firebase identity (Google / Phone OTP) → exchanged for the app session. */
+  loginWithFirebase: async (idToken) => {
+    const { token, user } = await api<{ token: string; user: PublicUser }>("/auth/firebase", {
+      method: "POST",
+      body: { idToken },
       auth: false,
     });
     setToken(token);

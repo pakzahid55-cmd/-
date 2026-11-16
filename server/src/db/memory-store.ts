@@ -154,13 +154,16 @@ export class MemoryStore implements Store {
   async findUserById(id: number): Promise<User | null> {
     return this.db.users.find((u) => u.id === id) ?? null;
   }
+  async findUserByFirebaseUid(uid: string): Promise<User | null> {
+    return this.db.users.find((u) => u.firebaseUid === uid) ?? null;
+  }
   async createUser(data: Omit<User, "id" | "createdAt">): Promise<User> {
     const user: User = { ...data, id: this.nextId("users"), createdAt: new Date().toISOString() };
     this.db.users.push(user);
     this.save();
     return user;
   }
-  async updateUser(id: number, data: Partial<Pick<User, "name" | "phone" | "passwordHash">>): Promise<User | null> {
+  async updateUser(id: number, data: Partial<Pick<User, "name" | "phone" | "passwordHash" | "firebaseUid" | "photoUrl" | "country" | "emailVerified">>): Promise<User | null> {
     const user = this.db.users.find((u) => u.id === id);
     if (!user) return null;
     Object.assign(user, data);

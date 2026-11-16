@@ -156,6 +156,13 @@ CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$BASE/api/uploads" -H "Au
 CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$BASE/api/uploads" -H "Authorization: Bearer $ATOKEN" -F "file=@/tmp/kajok-test.png;type=text/plain")
 [ "$CODE" != "201" ] && ok "Non-media upload rejected ($CODE)" || fail "Upload filter" "$CODE"
 
+echo ""
+echo "─── Firebase Identity ─────────────────────"
+CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$BASE/api/auth/firebase" -H 'Content-Type: application/json' -d '{"idToken":"garbage-not-a-real-token-garbage"}')
+[ "$CODE" = "400" ] && ok "Garbage Firebase token rejected (400)" || fail "Firebase token validation" "$CODE"
+CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$BASE/api/auth/firebase" -H 'Content-Type: application/json' -d '{}')
+[ "$CODE" = "400" ] && ok "Missing Firebase idToken rejected (400)" || fail "Firebase body validation" "$CODE"
+
 echo "─────────────────────────────────────────"
 echo "PASSED: $PASS   FAILED: $FAIL"
 [ "$FAIL" -eq 0 ] && echo "ALL TESTS PASSED" || echo "SOME TESTS FAILED"

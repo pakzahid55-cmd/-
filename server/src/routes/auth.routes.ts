@@ -5,6 +5,7 @@ import { hashPassword, verifyPassword } from "../lib/password.js";
 import { signToken } from "../lib/jwt.js";
 import { requireAuth, toPublicUser } from "../middleware/auth.js";
 import { HttpError } from "../middleware/error.js";
+import { verifyFirebaseIdToken } from "../lib/firebase-token.js";
 
 const router = Router();
 
@@ -62,6 +63,47 @@ router.post(
     });
     const token = signToken({ sub: user.id, role: user.role });
     res.status(201).json({ token, user: toPublicUser(user) });
+  }),
+);
+
+const firebaseLoginSchema = z.object({ idToken: z.string().min(20) });
+
+/** Firebase identity login (Google / Phone OTP / verified email) → same app session. */
+router.post(
+  "/firebase",
+  validateBody(firebaseLoginSchema),
+  asyncHandler(async (req, res) => {
+    const store = req.app.locals.store;
+    const identity = await verifyFirebaseIdToken(req.body.idToken);
+    if (!identity.uid) throw new HttpError(400, "Firebase token has no subject");
+
+    let user = await store.findUserByFirebaseUid(identity.uid);
+    if (!user && identity.email) {
+      const byEmail = await store.findUserByEmail(identity.email.toLowerCase());
+      if (byEmail) {
+        user = await store.updateUser(byEmail.id, {
+          firebaseUid: identity.uid,
+          photoUrl: identity.picture,
+          emailVerified: identity.emailVerified,
+          phone: byEmail.phone ?? identity.phone,
+        });
+      }
+    }
+    if (!user) {
+      user = await store.createUser({
+        name: identity.name ?? (identity.email ? identity.email.split("@")[0] : "KAJOK User"),
+        email: (identity.email ?? `${identity.uid}@firebase.kajok.app`).toLowerCase(),
+        passwordHash: "",
+        role: "customer",
+        phone: identity.phone ?? null,
+        firebaseUid: identity.uid,
+        photoUrl: identity.picture,
+        country: null,
+        emailVerified: identity.emailVerified,
+      });
+    }
+    const token = signToken({ sub: user.id, role: user.role });
+    res.json({ token, user: toPublicUser(user) });
   }),
 );
 

@@ -29,8 +29,9 @@ export interface Store {
   // Users
   findUserByEmail(email: string): Promise<User | null>;
   findUserById(id: number): Promise<User | null>;
+  findUserByFirebaseUid(uid: string): Promise<User | null>;
   createUser(data: Omit<User, "id" | "createdAt">): Promise<User>;
-  updateUser(id: number, data: Partial<Pick<User, "name" | "phone" | "passwordHash">>): Promise<User | null>;
+  updateUser(id: number, data: Partial<Pick<User, "name" | "phone" | "passwordHash" | "firebaseUid" | "photoUrl" | "country" | "emailVerified">>): Promise<User | null>;
   listUsers(): Promise<User[]>;
 
   // Addresses

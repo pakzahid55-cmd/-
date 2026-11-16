@@ -42,6 +42,10 @@ export class PgStore implements Store {
       passwordHash: r.password_hash,
       role: r.role,
       phone: r.phone ?? null,
+      firebaseUid: r.firebase_uid ?? null,
+      photoUrl: r.photo_url ?? null,
+      country: r.country ?? null,
+      emailVerified: Boolean(r.email_verified),
       createdAt: new Date(r.created_at).toISOString(),
     };
   }
@@ -102,17 +106,25 @@ export class PgStore implements Store {
   }
   async createUser(data: Omit<User, "id" | "createdAt">): Promise<User> {
     const rows = await this.q(
-      "INSERT INTO users (name, email, password_hash, role, phone) VALUES ($1,$2,$3,$4,$5) RETURNING *",
-      [data.name, data.email, data.passwordHash, data.role, data.phone],
+      "INSERT INTO users (name, email, password_hash, role, phone, firebase_uid, photo_url, country, email_verified) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *",
+      [data.name, data.email, data.passwordHash, data.role, data.phone, data.firebaseUid ?? null, data.photoUrl ?? null, data.country ?? null, data.emailVerified ?? false],
     );
     return this.mapUser(rows[0]);
   }
-  async updateUser(id: number, data: Partial<Pick<User, "name" | "phone" | "passwordHash">>): Promise<User | null> {
+  async findUserByFirebaseUid(uid: string): Promise<User | null> {
+    const rows = await this.q("SELECT * FROM users WHERE firebase_uid = $1", [uid]);
+    return rows[0] ? this.mapUser(rows[0]) : null;
+  }
+  async updateUser(id: number, data: Partial<Pick<User, "name" | "phone" | "passwordHash" | "firebaseUid" | "photoUrl" | "country" | "emailVerified">>): Promise<User | null> {
     const sets: string[] = [];
     const params: unknown[] = [id];
     if (data.name !== undefined) { params.push(data.name); sets.push(`name = $${params.length}`); }
     if (data.phone !== undefined) { params.push(data.phone); sets.push(`phone = $${params.length}`); }
     if (data.passwordHash !== undefined) { params.push(data.passwordHash); sets.push(`password_hash = $${params.length}`); }
+    if (data.firebaseUid !== undefined) { params.push(data.firebaseUid); sets.push(`firebase_uid = $${params.length}`); }
+    if (data.photoUrl !== undefined) { params.push(data.photoUrl); sets.push(`photo_url = $${params.length}`); }
+    if (data.country !== undefined) { params.push(data.country); sets.push(`country = $${params.length}`); }
+    if (data.emailVerified !== undefined) { params.push(data.emailVerified); sets.push(`email_verified = $${params.length}`); }
     if (!sets.length) return this.findUserById(id);
     const rows = await this.q(`UPDATE users SET ${sets.join(", ")} WHERE id = $1 RETURNING *`, params);
     return rows[0] ? this.mapUser(rows[0]) : null;
