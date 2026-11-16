@@ -1,7 +1,9 @@
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
+import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { env } from "./config/env.js";
 import type { Store } from "./db/store.js";
 import authRoutes from "./routes/auth.routes.js";
@@ -44,6 +46,22 @@ export function createApp(store: Store): express.Express {
 
   // Uploaded media (product images, promo videos) served statically.
   app.use("/uploads", express.static(path.resolve(process.cwd(), "uploads"), { maxAge: "7d", fallthrough: true }));
+
+  // Production single-deploy mode: serve the built web app (web/dist) when present.
+  // In development the Vite dev server serves the UI and proxies /api here instead.
+  const here = path.dirname(fileURLToPath(import.meta.url));
+  const webDist = [
+    path.resolve(here, "../../web/dist"),
+    path.resolve(process.cwd(), "web/dist"),
+    path.resolve(process.cwd(), "../web/dist"),
+  ].find((p) => fs.existsSync(path.join(p, "index.html")));
+  if (webDist) {
+    app.use(express.static(webDist, { maxAge: "1h", index: false }));
+    app.get("*", (req, res, next) => {
+      if (req.path.startsWith("/api") || req.path.startsWith("/uploads")) return next();
+      res.sendFile(path.join(webDist, "index.html"));
+    });
+  }
 
   app.use(notFoundHandler);
   app.use(errorHandler);
