@@ -12,6 +12,7 @@ import type {
   Product,
   ProductQuery,
   Review,
+  SellerProfile,
   User,
 } from "./types.js";
 
@@ -91,4 +92,12 @@ export interface Store {
   // Exchange rates (manually entered, auditable history — never fabricated)
   listExchangeRates(): Promise<ExchangeRate[]>;
   addExchangeRate(rate: Omit<ExchangeRate, "id">): Promise<ExchangeRate>;
+
+  // Seller profiles (passport verification, manual admin review)
+  createSellerProfile(data: Omit<SellerProfile, "id" | "createdAt" | "updatedAt">): Promise<SellerProfile>;
+  getSellerProfileByUserId(userId: number): Promise<SellerProfile | null>;
+  getSellerProfileById(id: number): Promise<SellerProfile | null>;
+  updateSellerProfile(id: number, data: Partial<SellerProfile>): Promise<SellerProfile | null>;
+  listSellerProfiles(): Promise<SellerProfile[]>;
+  listProductsBySeller(sellerId: number): Promise<Product[]>;
 }

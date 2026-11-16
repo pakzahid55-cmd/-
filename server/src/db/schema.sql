@@ -116,6 +116,29 @@ CREATE TABLE IF NOT EXISTS exchange_rates (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- Additive migrations for products (multi-vendor marketplace)
+ALTER TABLE products ADD COLUMN IF NOT EXISTS seller_id BIGINT REFERENCES users(id) ON DELETE SET NULL;
+ALTER TABLE products ADD COLUMN IF NOT EXISTS sku TEXT;
+
+-- Seller verification with passport (private). Approval is a manual admin action.
+CREATE TABLE IF NOT EXISTS seller_profiles (
+  id                BIGSERIAL PRIMARY KEY,
+  user_id           BIGINT NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+  shop_name_en      TEXT NOT NULL,
+  shop_name_ar      TEXT NOT NULL,
+  legal_name        TEXT NOT NULL,
+  passport_number   TEXT NOT NULL,
+  passport_country  TEXT NOT NULL,
+  passport_expiry   TEXT NOT NULL,
+  business_info     TEXT,
+  passport_document TEXT,
+  status            TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','under_review','approved','rejected','suspended')),
+  review_note       TEXT,
+  reviewed_by       TEXT,
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 CREATE INDEX IF NOT EXISTS idx_orders_user ON orders(user_id);
 
 CREATE TABLE IF NOT EXISTS coupons (

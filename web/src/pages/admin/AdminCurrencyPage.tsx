@@ -113,7 +113,7 @@ export function AdminCurrencyPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-line text-start text-xs text-slate-400">
-                    <th className="py-2 text-start">{t("common.date")}</th>
+                    <th className="py-2 text-start">{t("admin.date")}</th>
                     <th className="py-2 text-start">{t("admin.rateLabel")}</th>
                     <th className="py-2 text-start">{t("admin.rateNote")}</th>
                     <th className="py-2 text-start">{t("admin.rateBy")}</th>

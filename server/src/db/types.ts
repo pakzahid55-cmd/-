@@ -64,7 +64,36 @@ export interface Product {
   isFeatured: boolean;
   isNew: boolean;
   salesCount: number;
+  /** Owner user id when a seller lists it; null = platform (admin) product. */
+  sellerId: number | null;
+  sku: string | null;
   createdAt: string;
+}
+
+export type SellerStatus = "pending" | "under_review" | "approved" | "rejected" | "suspended";
+
+/**
+ * Seller verification record. Passport data is private: masked in lists,
+ * full values only for admins reviewing the record and the seller themselves.
+ * Approval is a genuine manual admin action — never automated.
+ */
+export interface SellerProfile {
+  id: number;
+  userId: number;
+  shopNameEn: string;
+  shopNameAr: string;
+  legalName: string;
+  passportNumber: string;
+  passportCountry: string;
+  passportExpiry: string;
+  businessInfo: string | null;
+  /** Server path of the uploaded passport document — never publicly served. */
+  passportDocument: string | null;
+  status: SellerStatus;
+  reviewNote: string | null;
+  reviewedBy: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface Review {

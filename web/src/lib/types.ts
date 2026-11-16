@@ -2,7 +2,7 @@ export interface PublicUser {
   id: number;
   name: string;
   email: string;
-  role: "customer" | "admin";
+  role: "customer" | "seller" | "admin";
   phone: string | null;
   createdAt: string;
 }
@@ -55,7 +55,31 @@ export interface Product {
   isFeatured: boolean;
   isNew: boolean;
   salesCount: number;
+  /** Owner user id when listed by a seller; null/undefined = platform product. */
+  sellerId?: number | null;
+  sku?: string | null;
   createdAt: string;
+}
+
+export type SellerStatus = "pending" | "under_review" | "approved" | "rejected" | "suspended";
+
+/** Seller verification record. Passport fields are private — masked in lists. */
+export interface SellerProfile {
+  id: number;
+  userId: number;
+  shopNameEn: string;
+  shopNameAr: string;
+  legalName: string;
+  passportNumber: string;
+  passportCountry: string;
+  passportExpiry: string;
+  businessInfo: string | null;
+  passportDocument: string | null;
+  status: SellerStatus;
+  reviewNote: string | null;
+  reviewedBy: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface Review {

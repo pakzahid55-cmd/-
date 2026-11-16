@@ -8,6 +8,7 @@ import type {
   Coupon,
   ExchangeRate,
   Order,
+  SellerProfile,
   OrderStatus,
   Paged,
   Product,
@@ -72,6 +73,8 @@ export class PgStore implements Store {
       isFeatured: Boolean(r.is_featured),
       isNew: Boolean(r.is_new),
       salesCount: Number(r.sales_count),
+      sellerId: r.seller_id === null || r.seller_id === undefined ? null : Number(r.seller_id),
+      sku: r.sku ?? null,
       createdAt: new Date(r.created_at).toISOString(),
     };
   }
@@ -290,9 +293,9 @@ export class PgStore implements Store {
   }
   async createProduct(data: Omit<Product, "id" | "rating" | "reviewCount" | "salesCount" | "createdAt">): Promise<Product> {
     const rows = await this.q(
-      `INSERT INTO products (slug, name_en, name_ar, description_en, description_ar, price, discount_price, brand_id, category_id, stock, images, video, specs, is_featured, is_new)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,$12,$13::jsonb,$14,$15) RETURNING *`,
-      [data.slug, data.nameEn, data.nameAr, data.descriptionEn, data.descriptionAr, data.price, data.discountPrice, data.brandId || null, data.categoryId || null, data.stock, JSON.stringify(data.images), data.video ?? null, JSON.stringify(data.specs), data.isFeatured, data.isNew],
+      `INSERT INTO products (slug, name_en, name_ar, description_en, description_ar, price, discount_price, brand_id, category_id, stock, images, video, specs, is_featured, is_new, seller_id, sku)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,$12,$13::jsonb,$14,$15,$16,$17) RETURNING *`,
+      [data.slug, data.nameEn, data.nameAr, data.descriptionEn, data.descriptionAr, data.price, data.discountPrice, data.brandId || null, data.categoryId || null, data.stock, JSON.stringify(data.images), data.video ?? null, JSON.stringify(data.specs), data.isFeatured, data.isNew, data.sellerId ?? null, data.sku ?? null],
     );
     return this.mapProduct(rows[0]);
   }
@@ -301,8 +304,8 @@ export class PgStore implements Store {
     if (!existing[0]) return null;
     const merged = { ...this.mapProduct(existing[0]), ...data };
     const rows = await this.q(
-      `UPDATE products SET slug=$2, name_en=$3, name_ar=$4, description_en=$5, description_ar=$6, price=$7, discount_price=$8, brand_id=$9, category_id=$10, stock=$11, images=$12::jsonb, video=$13, specs=$14::jsonb, is_featured=$15, is_new=$16 WHERE id=$1 RETURNING *`,
-      [id, merged.slug, merged.nameEn, merged.nameAr, merged.descriptionEn, merged.descriptionAr, merged.price, merged.discountPrice, merged.brandId || null, merged.categoryId || null, merged.stock, JSON.stringify(merged.images), merged.video ?? null, JSON.stringify(merged.specs), merged.isFeatured, merged.isNew],
+      `UPDATE products SET slug=$2, name_en=$3, name_ar=$4, description_en=$5, description_ar=$6, price=$7, discount_price=$8, brand_id=$9, category_id=$10, stock=$11, images=$12::jsonb, video=$13, specs=$14::jsonb, is_featured=$15, is_new=$16, sku=$17 WHERE id=$1 RETURNING *`,
+      [id, merged.slug, merged.nameEn, merged.nameAr, merged.descriptionEn, merged.descriptionAr, merged.price, merged.discountPrice, merged.brandId || null, merged.categoryId || null, merged.stock, JSON.stringify(merged.images), merged.video ?? null, JSON.stringify(merged.specs), merged.isFeatured, merged.isNew, merged.sku ?? null],
     );
     return this.mapProduct(rows[0]);
   }
@@ -544,5 +547,60 @@ export class PgStore implements Store {
       createdBy: r.created_by ?? null,
       createdAt: new Date(r.created_at).toISOString(),
     };
+  }
+
+  // ---------- Seller profiles ----------
+  private mapSeller(r: Record<string, any>): SellerProfile {
+    return {
+      id: Number(r.id),
+      userId: Number(r.user_id),
+      shopNameEn: r.shop_name_en,
+      shopNameAr: r.shop_name_ar,
+      legalName: r.legal_name,
+      passportNumber: r.passport_number,
+      passportCountry: r.passport_country,
+      passportExpiry: r.passport_expiry,
+      businessInfo: r.business_info ?? null,
+      passportDocument: r.passport_document ?? null,
+      status: r.status,
+      reviewNote: r.review_note ?? null,
+      reviewedBy: r.reviewed_by ?? null,
+      createdAt: new Date(r.created_at).toISOString(),
+      updatedAt: new Date(r.updated_at).toISOString(),
+    };
+  }
+  async createSellerProfile(data: Omit<SellerProfile, "id" | "createdAt" | "updatedAt">): Promise<SellerProfile> {
+    const rows = await this.q(
+      `INSERT INTO seller_profiles (user_id, shop_name_en, shop_name_ar, legal_name, passport_number, passport_country, passport_expiry, business_info, passport_document, status, review_note, reviewed_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
+      [data.userId, data.shopNameEn, data.shopNameAr, data.legalName, data.passportNumber, data.passportCountry, data.passportExpiry, data.businessInfo, data.passportDocument, data.status, data.reviewNote, data.reviewedBy],
+    );
+    return this.mapSeller(rows[0] as Record<string, any>);
+  }
+  async getSellerProfileByUserId(userId: number): Promise<SellerProfile | null> {
+    const rows = (await this.q("SELECT * FROM seller_profiles WHERE user_id = $1", [userId])) as Record<string, any>[];
+    return rows[0] ? this.mapSeller(rows[0]) : null;
+  }
+  async getSellerProfileById(id: number): Promise<SellerProfile | null> {
+    const rows = (await this.q("SELECT * FROM seller_profiles WHERE id = $1", [id])) as Record<string, any>[];
+    return rows[0] ? this.mapSeller(rows[0]) : null;
+  }
+  async updateSellerProfile(id: number, data: Partial<SellerProfile>): Promise<SellerProfile | null> {
+    const existing = (await this.q("SELECT * FROM seller_profiles WHERE id = $1", [id])) as Record<string, any>[];
+    if (!existing[0]) return null;
+    const merged = { ...this.mapSeller(existing[0]), ...data };
+    const rows = await this.q(
+      `UPDATE seller_profiles SET shop_name_en=$2, shop_name_ar=$3, legal_name=$4, passport_number=$5, passport_country=$6, passport_expiry=$7, business_info=$8, passport_document=$9, status=$10, review_note=$11, reviewed_by=$12 WHERE id=$1 RETURNING *`,
+      [id, merged.shopNameEn, merged.shopNameAr, merged.legalName, merged.passportNumber, merged.passportCountry, merged.passportExpiry, merged.businessInfo, merged.passportDocument, merged.status, merged.reviewNote, merged.reviewedBy],
+    );
+    return this.mapSeller(rows[0] as Record<string, any>);
+  }
+  async listSellerProfiles(): Promise<SellerProfile[]> {
+    const rows = (await this.q("SELECT * FROM seller_profiles ORDER BY id DESC")) as Record<string, any>[];
+    return rows.map((r) => this.mapSeller(r));
+  }
+  async listProductsBySeller(sellerId: number): Promise<Product[]> {
+    const rows = (await this.q("SELECT * FROM products WHERE seller_id = $1 ORDER BY created_at DESC", [sellerId])) as Record<string, any>[];
+    return rows.map((r) => this.mapProduct(r));
   }
 }

@@ -1,9 +1,11 @@
 import { Router } from "express";
+import path from "node:path";
+import fs from "node:fs";
 import { z } from "zod";
 import { asyncHandler, validateBody } from "../lib/validate.js";
 import { requireAdmin, requireAuth, toPublicUser } from "../middleware/auth.js";
 import { HttpError } from "../middleware/error.js";
-import type { OrderStatus } from "../db/types.js";
+import type { OrderStatus, SellerProfile, User } from "../db/types.js";
 
 const router = Router();
 router.use(requireAuth, requireAdmin);
@@ -33,6 +35,8 @@ const productSchema = z.object({
   specs: z.record(z.string(), z.string()).default({}),
   isFeatured: z.boolean().default(false),
   isNew: z.boolean().default(false),
+  sku: z.string().max(60).nullable().default(null),
+  sellerId: z.number().int().positive().nullable().default(null),
 });
 
 router.get(
@@ -184,5 +188,91 @@ router.delete("/banners/:id", asyncHandler(async (req, res) => {
   if (!ok) throw new HttpError(404, "Banner not found");
   res.json({ ok: true });
 }));
+
+// ---------- Sellers (manual passport review — never automated) ----------
+function maskPassport(p: string): string {
+  return p.length <= 4 ? "****" : `****${p.slice(-4)}`;
+}
+
+router.get(
+  "/sellers",
+  asyncHandler(async (req, res) => {
+    const store = req.app.locals.store;
+    const profiles = await store.listSellerProfiles();
+    const users = (await store.listUsers()) as User[];
+    const byId = new Map<number, User>();
+    for (const u of users) byId.set(u.id, u);
+    res.json({
+      items: profiles.map((p: SellerProfile) => ({
+        id: p.id,
+        userId: p.userId,
+        userName: byId.get(p.userId)?.name ?? "—",
+        userEmail: byId.get(p.userId)?.email ?? "—",
+        shopNameEn: p.shopNameEn,
+        shopNameAr: p.shopNameAr,
+        legalName: p.legalName,
+        passportNumberMasked: maskPassport(p.passportNumber),
+        passportCountry: p.passportCountry,
+        passportExpiry: p.passportExpiry,
+        status: p.status,
+        reviewNote: p.reviewNote,
+        hasDocument: Boolean(p.passportDocument),
+        createdAt: p.createdAt,
+        updatedAt: p.updatedAt,
+      })),
+    });
+  }),
+);
+
+router.get(
+  "/sellers/:id",
+  asyncHandler(async (req, res) => {
+    const store = req.app.locals.store;
+    const profile = await store.getSellerProfileById(Number(req.params.id));
+    if (!profile) throw new HttpError(404, "Seller application not found");
+    const user = await store.findUserById(profile.userId);
+    res.json({ profile, user: user ? toPublicUser(user) : null });
+  }),
+);
+
+router.get(
+  "/sellers/:id/document",
+  asyncHandler(async (req, res) => {
+    const store = req.app.locals.store;
+    const profile = await store.getSellerProfileById(Number(req.params.id));
+    if (!profile || !profile.passportDocument) throw new HttpError(404, "No passport document on file");
+    const filePath = path.resolve(process.cwd(), "data", "passports", path.basename(profile.passportDocument));
+    if (!fs.existsSync(filePath)) throw new HttpError(404, "Passport file is missing from storage");
+    const type = filePath.endsWith(".pdf") ? "application/pdf" : "image/jpeg";
+    res.setHeader("Content-Type", type);
+    res.setHeader("Cache-Control", "private, no-store");
+    fs.createReadStream(filePath).pipe(res);
+  }),
+);
+
+const statusSchema = z.object({
+  status: z.enum(["pending", "under_review", "approved", "rejected", "suspended"]),
+  reviewNote: z.string().max(500).nullable().optional(),
+});
+
+router.put(
+  "/sellers/:id/status",
+  validateBody(statusSchema),
+  asyncHandler(async (req, res) => {
+    const store = req.app.locals.store;
+    const profile = await store.getSellerProfileById(Number(req.params.id));
+    if (!profile) throw new HttpError(404, "Seller application not found");
+    const updated = await store.updateSellerProfile(profile.id, {
+      status: req.body.status,
+      reviewNote: req.body.reviewNote ?? profile.reviewNote,
+      reviewedBy: req.user!.email ?? String(req.user!.id),
+    });
+    // Promotion to the seller role happens only on approval.
+    if (req.body.status === "approved") {
+      await store.updateUser(profile.userId, { role: "seller" });
+    }
+    res.json({ profile: updated });
+  }),
+);
 
 export default router;

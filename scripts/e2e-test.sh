@@ -178,6 +178,26 @@ RESP=$(curl -s -X POST "$BASE/api/orders" -H "Authorization: Bearer $RTOKEN" -H 
 echo "$RESP" | grep -q '"currency":"SDG"' && ok "SDG order snapshots its currency" || fail "SDG order currency" "$RESP"
 echo "$RESP" | grep -q '"exchangeRate":3000' && ok "SDG order snapshots the applied rate" || fail "SDG order rate" "$RESP"
 
+echo ""
+echo "─── Seller & Passport Verification ────────"
+SRESP=$(curl -s -X POST "$BASE/api/seller/apply" -H "Authorization: Bearer $RTOKEN" -H 'Content-Type: application/json' -d '{"shopNameEn":"Nile Goods","shopNameAr":"بضائع النيل","legalName":"Test Seller","passportNumber":"A12345678","passportCountry":"Egypt","passportExpiry":"2030-01-01","businessInfo":"e2e"}')
+echo "$SRESP" | grep -q '"status":"pending"' && ok "Seller application starts pending" || fail "Seller apply" "$SRESP"
+CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$BASE/api/seller/products" -H "Authorization: Bearer $RTOKEN" -H 'Content-Type: application/json' -d '{"slug":"e2e-gate","nameEn":"E2E Gate","nameAr":"صنف","price":10}')
+[ "$CODE" = "403" ] && ok "Unapproved seller cannot publish (403)" || fail "Seller publish gate" "$CODE"
+LIST=$(curl -s "$BASE/api/admin/sellers" -H "Authorization: Bearer $ATOKEN")
+echo "$LIST" | grep -q '\*\*\*\*5678' && ok "Admin list masks passport (****5678)" || fail "Passport masking" "$LIST"
+SID=$(echo "$LIST" | grep -o '"id":[0-9]*' | head -1 | cut -d: -f2)
+CODE=$(curl -s -o /dev/null -w "%{http_code}" -X PUT "$BASE/api/admin/sellers/$SID/status" -H "Authorization: Bearer $ATOKEN" -H 'Content-Type: application/json' -d '{"status":"approved","reviewNote":"e2e ok"}')
+[ "$CODE" = "200" ] && ok "Admin approves seller manually (200)" || fail "Seller approval" "$CODE"
+SLUG="e2e-item-$RANDOM-$RANDOM"
+SRESP=$(curl -s -X POST "$BASE/api/seller/products" -H "Authorization: Bearer $RTOKEN" -H 'Content-Type: application/json' -d "{\"slug\":\"$SLUG\",\"nameEn\":\"E2E Item\",\"nameAr\":\"صنف\",\"price\":10,\"stock\":5,\"sku\":\"E2E-SKU-1\"}")
+echo "$SRESP" | grep -q '"sellerId":' && ok "Approved seller can publish products" || fail "Seller product create" "$SRESP"
+echo "$SRESP" | grep -q '"sku":"E2E-SKU-1"' && ok "Seller product keeps SKU" || fail "SKU field" "$SRESP"
+RESP=$(curl -s "$BASE/api/seller/orders" -H "Authorization: Bearer $RTOKEN")
+echo "$RESP" | grep -q '"items"' && ok "Seller orders tenant view (200)" || fail "Seller orders" "$RESP"
+CODE=$(curl -s -o /dev/null -w "%{http_code}" "$BASE/api/seller/stats" -H "Authorization: Bearer $RTOKEN")
+[ "$CODE" = "200" ] && ok "Seller stats endpoint (200)" || fail "Seller stats" "$CODE"
+
 echo "─────────────────────────────────────────"
 echo "PASSED: $PASS   FAILED: $FAIL"
 [ "$FAIL" -eq 0 ] && echo "ALL TESTS PASSED" || echo "SOME TESTS FAILED"

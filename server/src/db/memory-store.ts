@@ -15,6 +15,7 @@ import type {
   Product,
   ProductQuery,
   Review,
+  SellerProfile,
   User,
 } from "./types.js";
 import type { Store } from "./store.js";
@@ -45,6 +46,7 @@ interface DbShape {
   coupons: Coupon[];
   banners: Banner[];
   exchangeRates: ExchangeRate[];
+  sellerProfiles: SellerProfile[];
   counters: Record<string, number>;
 }
 
@@ -63,6 +65,7 @@ export class MemoryStore implements Store {
     if (fs.existsSync(DATA_FILE)) {
       this.db = JSON.parse(fs.readFileSync(DATA_FILE, "utf-8")) as DbShape;
       this.db.exchangeRates ??= [];
+      this.db.sellerProfiles ??= [];
       return;
     }
     this.db = {
@@ -76,7 +79,8 @@ export class MemoryStore implements Store {
       coupons: [],
       banners: [],
       exchangeRates: [],
-      counters: { users: 0, addresses: 0, categories: 0, brands: 0, products: 0, reviews: 0, orders: 100000, coupons: 0, banners: 0, exchange_rates: 0 },
+      sellerProfiles: [],
+      counters: { users: 0, addresses: 0, categories: 0, brands: 0, products: 0, reviews: 0, orders: 100000, coupons: 0, banners: 0, exchange_rates: 0, seller_profiles: 0 },
     };
     await this.seed();
     this.save();
@@ -106,6 +110,8 @@ export class MemoryStore implements Store {
         id: this.nextId("products"),
         brandId: brandBySlug.get(brandSlug)?.id ?? 1,
         categoryId: catBySlug.get(categorySlug)?.id ?? 1,
+        sellerId: null,
+        sku: null,
         createdAt: new Date(Date.now() - Math.floor(Math.random() * 60) * 86400000).toISOString(),
       });
     }
@@ -521,5 +527,33 @@ export class MemoryStore implements Store {
     this.db.exchangeRates.push(row);
     this.save();
     return row;
+  }
+
+  // ---------- Seller profiles ----------
+  async createSellerProfile(data: Omit<SellerProfile, "id" | "createdAt" | "updatedAt">): Promise<SellerProfile> {
+    this.db.sellerProfiles ??= [];
+    const row: SellerProfile = { ...data, id: this.nextId("seller_profiles"), createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+    this.db.sellerProfiles.push(row);
+    this.save();
+    return row;
+  }
+  async getSellerProfileByUserId(userId: number): Promise<SellerProfile | null> {
+    return (this.db.sellerProfiles ?? []).find((s) => s.userId === userId) ?? null;
+  }
+  async getSellerProfileById(id: number): Promise<SellerProfile | null> {
+    return (this.db.sellerProfiles ?? []).find((s) => s.id === id) ?? null;
+  }
+  async updateSellerProfile(id: number, data: Partial<SellerProfile>): Promise<SellerProfile | null> {
+    const row = (this.db.sellerProfiles ?? []).find((s) => s.id === id);
+    if (!row) return null;
+    Object.assign(row, data, { updatedAt: new Date().toISOString() });
+    this.save();
+    return row;
+  }
+  async listSellerProfiles(): Promise<SellerProfile[]> {
+    return (this.db.sellerProfiles ?? []).slice().sort((a, b) => b.id - a.id);
+  }
+  async listProductsBySeller(sellerId: number): Promise<Product[]> {
+    return this.db.products.filter((p) => p.sellerId === sellerId);
   }
 }

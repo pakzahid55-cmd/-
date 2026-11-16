@@ -42,19 +42,25 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
 
 export function requireRole(...roles: Role[]) {
   return (req: Request, res: Response, next: NextFunction): void => {
-    if (!req.user) {
-      res.status(401).json({ error: "Authentication required" });
-      return;
-    }
-    if (!roles.includes(req.user.role)) {
-      res.status(403).json({ error: "Insufficient permissions" });
-      return;
-    }
-    next();
+    const check = (): void => {
+      if (!req.user) {
+        res.status(401).json({ error: "Authentication required" });
+        return;
+      }
+      if (!roles.includes(req.user.role)) {
+        res.status(403).json({ error: "Insufficient permissions" });
+        return;
+      }
+      next();
+    };
+    // Runs authentication first when used standalone (e.g. requireSeller).
+    if (req.user) check();
+    else requireAuth(req, res, check);
   };
 }
 
 export const requireAdmin = requireRole("admin");
+export const requireSeller = requireRole("seller", "admin");
 
 export function toPublicUser(user: User) {
   const { passwordHash: _ph, ...publicUser } = user;

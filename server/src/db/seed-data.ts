@@ -36,7 +36,7 @@ export const seedBrands: Omit<Brand, "id">[] = [
 ];
 
 export interface SeedProduct
-  extends Omit<Product, "id" | "rating" | "reviewCount" | "salesCount" | "createdAt" | "brandId" | "categoryId"> {
+  extends Omit<Product, "id" | "rating" | "reviewCount" | "salesCount" | "createdAt" | "brandId" | "categoryId" | "sellerId" | "sku"> {
   rating: number;
   reviewCount: number;
   salesCount: number;

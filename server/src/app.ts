@@ -12,6 +12,7 @@ import orderRoutes from "./routes/orders.routes.js";
 import adminRoutes from "./routes/admin.routes.js";
 import uploadsRouter from "./routes/uploads.routes.js";
 import currencyRoutes from "./routes/currency.routes.js";
+import sellerRoutes from "./routes/seller.routes.js";
 import { errorHandler, notFoundHandler } from "./middleware/error.js";
 
 export function createApp(store: Store): express.Express {
@@ -39,6 +40,7 @@ export function createApp(store: Store): express.Express {
   app.use("/api/admin", adminRoutes);
   app.use("/api/uploads", uploadsRouter);
   app.use("/api/currency", currencyRoutes);
+  app.use("/api/seller", sellerRoutes);
 
   // Uploaded media (product images, promo videos) served statically.
   app.use("/uploads", express.static(path.resolve(process.cwd(), "uploads"), { maxAge: "7d", fallthrough: true }));

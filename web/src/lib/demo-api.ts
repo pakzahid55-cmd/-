@@ -8,7 +8,7 @@
  * (localStorage). No real payments are simulated — COD only, like production.
  */
 import raw from "./demo-data.json";
-import type { Address, Banner, Brand, Category, Coupon, Order, OrderItem, Product, PublicUser, Review } from "./types";
+import type { Address, Banner, Brand, Category, Coupon, Order, OrderItem, Product, PublicUser, Review, SellerProfile } from "./types";
 
 const BASE = import.meta.env.BASE_URL || "/";
 export function asset(p: string): string {
@@ -47,6 +47,7 @@ interface DemoState {
   coupons: Coupon[];
   banners: Banner[];
   exchangeRates: { id: number; base: "EGP"; quote: "SDG"; rate: number; note: string | null; createdBy: string | null; createdAt: string }[];
+  sellerProfiles: SellerProfile[];
   counters: Record<string, number>;
 }
 
@@ -101,6 +102,7 @@ function initialState(): DemoState {
     coupons: data.coupons.map((c) => ({ ...c })),
     banners: data.banners.map((b) => ({ ...b })),
     exchangeRates: [],
+    sellerProfiles: [],
     counters: { users: 2, addresses: 1, orders: 1, reviews: 0 },
   };
 }
@@ -422,6 +424,112 @@ export async function demoApi<T>(path: string, options: { method?: string; body?
     return { order: o } as T;
   }
 
+  // ---------- seller (marketplace) ----------
+  state.sellerProfiles ??= [];
+  const myProfile = (): SellerProfile | undefined => state.sellerProfiles.find((s) => s.userId === user?.id);
+  const needSeller = (): void => {
+    if (!user || (user.role !== "seller" && user.role !== "admin")) throw new DemoError(user ? 403 : 401, user ? "Insufficient permissions" : "Authentication required");
+  };
+
+  if (cleanPath === "/seller/apply" && method === "POST") {
+    if (!user) throw new DemoError(401, "Authentication required");
+    const existing = myProfile();
+    if (existing && existing.status === "approved") throw new DemoError(409, "This account is already an approved seller");
+    const data = {
+      shopNameEn: String(body.shopNameEn ?? ""), shopNameAr: String(body.shopNameAr ?? ""), legalName: String(body.legalName ?? ""),
+      passportNumber: String(body.passportNumber ?? ""), passportCountry: String(body.passportCountry ?? ""),
+      passportExpiry: String(body.passportExpiry ?? ""), businessInfo: body.businessInfo ?? null,
+    };
+    if (existing) {
+      Object.assign(existing, data, { status: "pending", reviewNote: null, reviewedBy: null, updatedAt: new Date().toISOString() });
+      save();
+      return { profile: existing } as T;
+    }
+    const profile: SellerProfile = { id: nextId("sellerProfiles"), userId: user.id, ...data, passportDocument: null, status: "pending", reviewNote: null, reviewedBy: null, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+    state.sellerProfiles.push(profile);
+    save();
+    return { profile } as T;
+  }
+  if (cleanPath === "/seller/profile" && method === "GET") {
+    if (!user) throw new DemoError(401, "Authentication required");
+    return { profile: myProfile() ?? null, user: stripPw(user) } as T;
+  }
+  if (cleanPath === "/seller/document" && method === "POST") {
+    if (!user) throw new DemoError(401, "Authentication required");
+    const profile = myProfile();
+    if (!profile) throw new DemoError(404, "Submit your seller application first");
+    profile.passportDocument = String(body.filename ?? "passport-upload");
+    profile.updatedAt = new Date().toISOString();
+    save();
+    return { profile } as T;
+  }
+  if (cleanPath === "/seller/products" && method === "GET") {
+    needSeller();
+    return { items: state.products.filter((p) => (user!.role === "admin" ? true : p.sellerId === user!.id)) } as T;
+  }
+  if (cleanPath === "/seller/products" && method === "POST") {
+    needSeller();
+    if (user!.role !== "admin" && myProfile()?.status !== "approved") throw new DemoError(403, "Your seller account must be approved before you can list products");
+    const p: DemoProduct = {
+      id: nextId("products"),
+      slug: String(body.slug ?? `item-${Date.now()}`),
+      nameEn: String(body.nameEn ?? ""), nameAr: String(body.nameAr ?? ""),
+      descriptionEn: String(body.descriptionEn ?? ""), descriptionAr: String(body.descriptionAr ?? ""),
+      price: Number(body.price ?? 0), discountPrice: body.discountPrice ?? null,
+      brandId: Number(body.brandId ?? 0), categoryId: Number(body.categoryId ?? 0),
+      stock: Number(body.stock ?? 0), images: Array.isArray(body.images) ? body.images : [], video: body.video ?? null,
+      specs: body.specs ?? {}, rating: 0, reviewCount: 0,
+      isFeatured: Boolean(body.isFeatured), isNew: Boolean(body.isNew), salesCount: 0,
+      sellerId: user!.role === "admin" ? null : user!.id,
+      sku: body.sku ?? null,
+      createdAt: new Date().toISOString(),
+    };
+    state.products.unshift(p);
+    save();
+    return { product: p } as T;
+  }
+  const ownProductMatch = cleanPath.match(/^\/seller\/products\/(\d+)$/);
+  if (ownProductMatch) {
+    needSeller();
+    const p = state.products.find((x) => x.id === Number(ownProductMatch[1]));
+    if (!p) throw new DemoError(404, "Product not found");
+    if (user!.role !== "admin" && p.sellerId !== user!.id) throw new DemoError(403, "This product belongs to another seller");
+    if (method === "PUT") {
+      const { sellerId: _ignored, id: _id, createdAt: _c, rating: _r, reviewCount: _rc, salesCount: _sc, ...safe } = body as Record<string, any>;
+      Object.assign(p, safe);
+      save();
+      return { product: p } as T;
+    }
+    if (method === "DELETE") {
+      state.products = state.products.filter((x) => x.id !== p.id);
+      save();
+      return { ok: true } as T;
+    }
+  }
+  if (cleanPath === "/seller/orders" && method === "GET") {
+    needSeller();
+    const ownIds = new Set(state.products.filter((p) => p.sellerId === user!.id).map((p) => p.id));
+    const items = state.orders
+      .map((o) => ({ ...o, items: o.items.filter((i) => ownIds.has(i.productId)) }))
+      .filter((o) => o.items.length > 0)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    return { items } as T;
+  }
+  if (cleanPath === "/seller/stats" && method === "GET") {
+    needSeller();
+    const own = state.products.filter((p) => p.sellerId === user!.id);
+    const ownIds = new Set(own.map((p) => p.id));
+    let revenue = 0, orders = 0, pending = 0;
+    for (const o of state.orders) {
+      const mine = o.items.filter((i) => ownIds.has(i.productId));
+      if (mine.length === 0) continue;
+      orders += 1;
+      if (o.status === "pending") pending += 1;
+      if (o.status !== "cancelled") revenue += mine.reduce((s, i) => s + i.price * i.quantity, 0) / (Number(o.exchangeRate) || 1);
+    }
+    return { totalRevenue: Math.round(revenue * 100) / 100, totalOrders: orders, pendingOrders: pending, totalProducts: own.length } as T;
+  }
+
   // ---------- admin ----------
   if (cleanPath.startsWith("/admin/")) {
     if (!user || user.role !== "admin") throw new DemoError(user ? 403 : 401, user ? "Insufficient permissions" : "Authentication required");
@@ -447,6 +555,48 @@ export async function demoApi<T>(path: string, options: { method?: string; body?
         salesByDay: days,
         recentOrders: [...state.orders].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 5),
       } as T;
+    }
+    if (cleanPath === "/admin/sellers" && method === "GET") {
+      return {
+        items: state.sellerProfiles.map((p) => ({
+          id: p.id, userId: p.userId,
+          userName: state.users.find((u) => u.id === p.userId)?.name ?? "—",
+          userEmail: state.users.find((u) => u.id === p.userId)?.email ?? "—",
+          shopNameEn: p.shopNameEn, shopNameAr: p.shopNameAr, legalName: p.legalName,
+          passportNumberMasked: p.passportNumber.length <= 4 ? "****" : `****${p.passportNumber.slice(-4)}`,
+          passportCountry: p.passportCountry, passportExpiry: p.passportExpiry,
+          status: p.status, reviewNote: p.reviewNote, hasDocument: Boolean(p.passportDocument),
+          createdAt: p.createdAt, updatedAt: p.updatedAt,
+        })),
+      } as T;
+    }
+    const sellerDetailMatch = cleanPath.match(/^\/admin\/sellers\/(\d+)$/);
+    if (sellerDetailMatch && method === "GET") {
+      const profile = state.sellerProfiles.find((s) => s.id === Number(sellerDetailMatch[1]));
+      if (!profile) throw new DemoError(404, "Seller application not found");
+      const su = state.users.find((u) => u.id === profile.userId);
+      return { profile, user: su ? stripPw(su) : null } as T;
+    }
+    const sellerDocMatch = cleanPath.match(/^\/admin\/sellers\/(\d+)\/document$/);
+    if (sellerDocMatch && method === "GET") {
+      const profile = state.sellerProfiles.find((s) => s.id === Number(sellerDocMatch[1]));
+      if (!profile || !profile.passportDocument) throw new DemoError(404, "No passport document on file");
+      return { filename: profile.passportDocument, demo: true } as T;
+    }
+    const sellerStatusMatch = cleanPath.match(/^\/admin\/sellers\/(\d+)\/status$/);
+    if (sellerStatusMatch && method === "PUT") {
+      const profile = state.sellerProfiles.find((s) => s.id === Number(sellerStatusMatch[1]));
+      if (!profile) throw new DemoError(404, "Seller application not found");
+      profile.status = body.status;
+      profile.reviewNote = body.reviewNote ?? profile.reviewNote;
+      profile.reviewedBy = user.email;
+      profile.updatedAt = new Date().toISOString();
+      if (body.status === "approved") {
+        const su = state.users.find((u) => u.id === profile.userId);
+        if (su) su.role = "seller";
+      }
+      save();
+      return { profile } as T;
     }
     if (cleanPath === "/admin/customers") {
       return { items: state.users.map((u) => ({ ...stripPw(u), orderCount: state.orders.filter((o) => o.userId === u.id).length })) } as T;

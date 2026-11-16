@@ -80,6 +80,9 @@ export function Navbar() {
             <Link to="/orders/track" className="hover:text-accent">
               {t("nav.trackOrder")}
             </Link>
+            <Link to="/seller/apply" className="hover:text-accent">
+              {t("nav.sell")}
+            </Link>
             <button
               type="button"
               onClick={() => setCurrency(currency === "EGP" ? "SDG" : "EGP")}

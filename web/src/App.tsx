@@ -34,6 +34,9 @@ const AdminCustomersPage = lazy(() => import("./pages/admin/AdminCustomersPage")
 const AdminCouponsPage = lazy(() => import("./pages/admin/AdminCouponsPage").then((m) => ({ default: m.AdminCouponsPage })));
 const AdminBannersPage = lazy(() => import("./pages/admin/AdminBannersPage").then((m) => ({ default: m.AdminBannersPage })));
 const AdminCurrencyPage = lazy(() => import("./pages/admin/AdminCurrencyPage").then((m) => ({ default: m.AdminCurrencyPage })));
+const AdminSellersPage = lazy(() => import("./pages/admin/AdminSellersPage").then((m) => ({ default: m.AdminSellersPage })));
+const SellerApplyPage = lazy(() => import("./pages/SellerApplyPage").then((m) => ({ default: m.SellerApplyPage })));
+const SellerCenterPage = lazy(() => import("./pages/SellerCenterPage").then((m) => ({ default: m.SellerCenterPage })));
 
 function NotFoundPage() {
   return (
@@ -73,6 +76,8 @@ export default function App() {
           <Route path="wishlist" element={<WishlistPage />} />
           <Route path="offers" element={<OffersPage />} />
           <Route path="contact" element={<ContactPage />} />
+          <Route path="seller/apply" element={<SellerApplyPage />} />
+          <Route path="seller" element={<SellerCenterPage />} />
           <Route path="about" element={<AboutPage />} />
           <Route path="privacy" element={<PrivacyPage />} />
           <Route path="terms" element={<TermsPage />} />
@@ -85,6 +90,7 @@ export default function App() {
             <Route path="coupons" element={<AdminCouponsPage />} />
             <Route path="banners" element={<AdminBannersPage />} />
             <Route path="currency" element={<AdminCurrencyPage />} />
+            <Route path="sellers" element={<AdminSellersPage />} />
           </Route>
           <Route path="*" element={<NotFoundPage />} />
         </Route>

@@ -23,6 +23,7 @@ const emptyForm = {
   brandId: 0,
   categoryId: 0,
   stock: 0,
+  sku: "",
   images: [] as string[],
   video: "",
   specs: "",
@@ -70,6 +71,7 @@ export function AdminProductsPage() {
       brandId: Number(form.brandId),
       categoryId: Number(form.categoryId),
       stock: Number(form.stock),
+      sku: form.sku.trim() || null,
       images: form.images,
       video: form.video.trim() || null,
       specs: Object.fromEntries(
@@ -114,6 +116,7 @@ export function AdminProductsPage() {
       brandId: p.brandId,
       categoryId: p.categoryId,
       stock: p.stock,
+      sku: p.sku ?? "",
       images: [...p.images],
       video: p.video ?? "",
       specs: Object.entries(p.specs).map(([k, v]) => `${k}: ${v}`).join("\n"),
@@ -170,6 +173,8 @@ export function AdminProductsPage() {
           <div>
             <label className="label-kajok">{t("admin.stock")}</label>
             <input type="number" min="0" required value={form.stock} onChange={(e) => setForm((f) => f && { ...f, stock: Number(e.target.value) })} className="input-kajok" />
+            <label className="label-kajok">SKU</label>
+            <input value={form.sku} onChange={(e) => setForm((f) => f && { ...f, sku: e.target.value })} className="input-kajok" dir="ltr" />
           </div>
           <div>
             <label className="label-kajok">{t("admin.priceField")}</label>
