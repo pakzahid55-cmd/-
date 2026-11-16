@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { PageHeader, Spinner } from "../components/ui";
 import { useI18n } from "../i18n/I18nProvider";
 import { api } from "../lib/api";
+import { isDemo } from "../lib/mode";
 import type { Address, PublicUser } from "../lib/types";
 import { useAuth } from "../store/auth";
 
@@ -144,6 +145,7 @@ export function AccountPage() {
         </section>
 
         {/* Security */}
+        {!isDemo && (
         <section className="card-kajok p-6">
           <h2 className="text-lg font-bold">{t("account.security")}</h2>
           <form onSubmit={changePassword} className="mt-5 space-y-4">
@@ -159,6 +161,7 @@ export function AccountPage() {
             <button type="submit" className="btn-primary px-6 py-2.5">{t("account.changePassword")}</button>
           </form>
         </section>
+        )}
 
         {/* Addresses */}
         <section className="card-kajok p-6 lg:col-span-2">

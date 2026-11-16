@@ -38,6 +38,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     document.documentElement.lang = lang;
     document.documentElement.dir = dir;
+    document.title = lang === "ar" ? "كجوك — طلبك. على طريقتك." : "KAJOK — Your Order. Your Way.";
     localStorage.setItem("kajok.lang", lang);
   }, [lang, dir]);
 

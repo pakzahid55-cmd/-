@@ -1,4 +1,9 @@
 export const en = {
+  brand: {
+    name: "KAJOK",
+    tagline: "Your Order. Your Way.",
+    title: "KAJOK — Your Order. Your Way.",
+  },
   common: {
     loading: "Loading…",
     error: "Something went wrong",

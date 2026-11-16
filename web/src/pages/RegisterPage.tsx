@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useI18n } from "../i18n/I18nProvider";
+import { isDemo } from "../lib/mode";
 import { useAuth } from "../store/auth";
 
 export function RegisterPage() {
@@ -16,7 +17,7 @@ export function RegisterPage() {
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (form.password !== form.confirm) {
+    if (!isDemo && form.password !== form.confirm) {
       setError(t("auth.passwordsNoMatch"));
       return;
     }
@@ -26,7 +27,7 @@ export function RegisterPage() {
       await register({
         name: form.name,
         email: form.email,
-        password: form.password,
+        password: isDemo ? "" : form.password,
         phone: form.phone || undefined,
       });
       navigate("/", { replace: true });
@@ -41,7 +42,9 @@ export function RegisterPage() {
     <div className="container-kajok flex min-h-[70vh] items-center justify-center py-12">
       <div className="card-kajok w-full max-w-md p-8">
         <h1 className="text-2xl font-bold">{t("auth.registerTitle")}</h1>
-        <p className="mt-2 text-sm text-slate-500">{t("auth.registerSubtitle")}</p>
+        <p className="mt-2 text-sm text-slate-500">
+          {isDemo ? "نسخة عرض تجريبية — بدون كلمة مرور، البيانات تُحفظ في متصفحك فقط." : t("auth.registerSubtitle")}
+        </p>
 
         <form onSubmit={submit} className="mt-6 space-y-4">
           <div>
@@ -58,33 +61,37 @@ export function RegisterPage() {
             </label>
             <input id="reg-phone" type="tel" value={form.phone} onChange={set("phone")} className="input-kajok" dir="ltr" />
           </div>
-          <div>
-            <label htmlFor="reg-password" className="label-kajok">{t("auth.password")}</label>
-            <input
-              id="reg-password"
-              type="password"
-              required
-              minLength={8}
-              autoComplete="new-password"
-              value={form.password}
-              onChange={set("password")}
-              className="input-kajok"
-              dir="ltr"
-            />
-          </div>
-          <div>
-            <label htmlFor="reg-confirm" className="label-kajok">{t("auth.confirmPassword")}</label>
-            <input
-              id="reg-confirm"
-              type="password"
-              required
-              autoComplete="new-password"
-              value={form.confirm}
-              onChange={set("confirm")}
-              className="input-kajok"
-              dir="ltr"
-            />
-          </div>
+          {!isDemo && (
+            <>
+              <div>
+                <label htmlFor="reg-password" className="label-kajok">{t("auth.password")}</label>
+                <input
+                  id="reg-password"
+                  type="password"
+                  required
+                  minLength={8}
+                  autoComplete="new-password"
+                  value={form.password}
+                  onChange={set("password")}
+                  className="input-kajok"
+                  dir="ltr"
+                />
+              </div>
+              <div>
+                <label htmlFor="reg-confirm" className="label-kajok">{t("auth.confirmPassword")}</label>
+                <input
+                  id="reg-confirm"
+                  type="password"
+                  required
+                  autoComplete="new-password"
+                  value={form.confirm}
+                  onChange={set("confirm")}
+                  className="input-kajok"
+                  dir="ltr"
+                />
+              </div>
+            </>
+          )}
 
           {error && <p className="rounded-lg bg-red-50 px-3.5 py-2.5 text-sm text-red-700">{error}</p>}
 

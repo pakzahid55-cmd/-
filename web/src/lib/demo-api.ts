@@ -170,6 +170,12 @@ export async function demoApi<T>(path: string, options: { method?: string; body?
 
   // ---------- auth ----------
   if (cleanPath === "/auth/login" && method === "POST") {
+    if (body?.demoAs) {
+      const role = body.demoAs === "admin" ? "admin" : "customer";
+      const du = state.users.find((x) => x.role === role);
+      if (!du) throw new DemoError(404, "Demo user missing");
+      return { token: `demo.${btoa(du.email)}`, user: stripPw(du) } as T;
+    }
     const u = state.users.find((x) => x.email === body?.email?.toLowerCase() && x.password === body?.password);
     if (!u) throw new DemoError(401, "Invalid email or password");
     return { token: `demo.${btoa(u.email)}`, user: stripPw(u) } as T;

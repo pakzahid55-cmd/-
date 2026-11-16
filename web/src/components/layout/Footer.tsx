@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { useI18n } from "../../i18n/I18nProvider";
+import { isDemo } from "../../lib/mode";
 import { Logo } from "./Navbar";
 
 export function Footer() {
@@ -55,8 +56,12 @@ export function Footer() {
             <p className="text-xs text-white/50">{t("footer.paymentMethods")}</p>
             <div className="mt-2 flex items-center gap-2">
               <span className="rounded-md bg-white/10 px-2.5 py-1 text-xs font-semibold">{t("footer.cashOnDelivery")}</span>
-              <span className="rounded-md bg-white/10 px-2.5 py-1 text-xs font-semibold">VISA</span>
-              <span className="rounded-md bg-white/10 px-2.5 py-1 text-xs font-semibold">Mastercard</span>
+              {!isDemo && (
+                <>
+                  <span className="rounded-md bg-white/10 px-2.5 py-1 text-xs font-semibold">VISA</span>
+                  <span className="rounded-md bg-white/10 px-2.5 py-1 text-xs font-semibold">Mastercard</span>
+                </>
+              )}
             </div>
           </div>
         </div>

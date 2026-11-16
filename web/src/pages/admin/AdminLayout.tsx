@@ -1,5 +1,6 @@
 import { Navigate, NavLink, Outlet, Link } from "react-router-dom";
 import { useI18n } from "../../i18n/I18nProvider";
+import { isDemo } from "../../lib/mode";
 import { useAuth } from "../../store/auth";
 
 export function AdminLayout() {

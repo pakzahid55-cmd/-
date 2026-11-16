@@ -1,8 +1,9 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import { BrowserRouter } from "react-router-dom";
+import { BrowserRouter, HashRouter } from "react-router-dom";
 import App from "./App";
 import { I18nProvider } from "./i18n/I18nProvider";
+import { isDemo } from "./lib/mode";
 import { useAuth } from "./store/auth";
 import "./index.css";
 
@@ -12,11 +13,14 @@ function Root() {
     void initialize();
   }, [initialize]);
 
+  // HashRouter in demo builds keeps deep links working on any static host
+  // (GitHub Pages, CDNs) without server-side SPA fallback.
+  const Router = isDemo ? HashRouter : BrowserRouter;
   return (
     <I18nProvider>
-      <BrowserRouter basename={import.meta.env.BASE_URL}>
+      <Router basename={isDemo ? undefined : import.meta.env.BASE_URL}>
         <App />
-      </BrowserRouter>
+      </Router>
     </I18nProvider>
   );
 }

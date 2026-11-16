@@ -7,6 +7,7 @@ interface AuthState {
   initialized: boolean;
   initialize: () => Promise<void>;
   login: (email: string, password: string) => Promise<PublicUser>;
+  loginDemo: (demoAs: "customer" | "admin") => Promise<PublicUser>;
   register: (data: { name: string; email: string; password: string; phone?: string }) => Promise<PublicUser>;
   logout: () => void;
   setUser: (user: PublicUser) => void;
@@ -35,6 +36,18 @@ export const useAuth = create<AuthState>((set) => ({
     const { token, user } = await api<{ token: string; user: PublicUser }>("/auth/login", {
       method: "POST",
       body: { email, password },
+      auth: false,
+    });
+    setToken(token);
+    set({ user });
+    return user;
+  },
+
+  /** Demo-only: switch to a pre-made demo account without any password form. */
+  loginDemo: async (demoAs: "customer" | "admin") => {
+    const { token, user } = await api<{ token: string; user: PublicUser }>("/auth/login", {
+      method: "POST",
+      body: { demoAs },
       auth: false,
     });
     setToken(token);

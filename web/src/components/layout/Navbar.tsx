@@ -7,15 +7,16 @@ import { useWishlist } from "../../store/wishlist";
 import { SearchBar } from "../SearchBar";
 
 export function Logo({ light = false }: { light?: boolean }) {
+  const { t } = useI18n();
   return (
-    <Link to="/" className="flex items-center gap-2.5" aria-label="KAJOK">
+    <Link to="/" className="flex items-center gap-2.5" aria-label={t("brand.name")}>
       <svg width="34" height="34" viewBox="0 0 40 40" aria-hidden="true">
         <rect width="40" height="40" rx="9" fill="#6C3BCE" />
         <path d="M12 10h4.6v8.2L24.2 10h5.6l-8.4 9.4 8.9 10.6h-5.7l-7-8.4-1.6 1.7V30H12V10z" fill="#fff" />
       </svg>
       <div className="leading-tight">
-        <span className={`block text-lg font-extrabold tracking-wide ${light ? "text-white" : "text-deep"}`}>KAJOK</span>
-        <span className={`block text-[10px] font-medium ${light ? "text-accent" : "text-slate-400"}`}>Your Order. Your Way.</span>
+        <span className={`block text-lg font-extrabold tracking-wide ${light ? "text-white" : "text-deep"}`}>{t("brand.name")}</span>
+        <span className={`block text-[10px] font-medium ${light ? "text-accent" : "text-slate-400"}`}>{t("brand.tagline")}</span>
       </div>
     </Link>
   );
