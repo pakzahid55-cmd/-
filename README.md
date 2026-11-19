@@ -6,6 +6,10 @@ A premium, bilingual (English / Arabic RTL) e-commerce platform with smart searc
 
 ## Quick start
 
+**🚀 Deploy the real (database-backed) version in one click:**
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/pakzahid55-cmd/-)
+
 ```bash
 npm install                 # installs server + web workspaces
 npm run dev:server          # API on http://localhost:4000

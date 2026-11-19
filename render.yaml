@@ -1,5 +1,5 @@
 # Render Blueprint — KAJOK real (production) deployment
-# One web service: API + built storefront + uploads in a single Node process.
+# One click provisions: PostgreSQL database + web service (API + storefront + uploads).
 services:
   - type: web
     name: kajok
@@ -13,9 +13,11 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
-      # Set this from your Render PostgreSQL dashboard (Internal Database URL).
+      # Wired automatically from the database created by this blueprint.
       - key: DATABASE_URL
-        sync: false
+        fromDatabase:
+          name: kajok-db
+          property: connectionString
       # Auto-generated strong secret — rotate it from the Render dashboard anytime.
       - key: JWT_SECRET
         generateValue: true
@@ -27,3 +29,9 @@ services:
       # Never simulate successful payments.
       - key: ONLINE_PAYMENTS_ENABLED
         value: "false"
+
+databases:
+  - name: kajok-db
+    plan: free
+    databaseName: kajok
+    ipAllowList: []
