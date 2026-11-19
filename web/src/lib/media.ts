@@ -4,6 +4,7 @@
  *    stored in IndexedDB and referenced by "demo-video:<id>" markers.
  *  - Real app: files upload to POST /api/uploads (server stores under /uploads).
  */
+import { API_BASE } from "./api";
 import { isDemo } from "./mode";
 
 const MAX_IMAGE_SIDE = 1200;
@@ -127,7 +128,7 @@ export async function uploadMedia(file: File, kind: "image" | "video"): Promise<
   const fd = new FormData();
   fd.append("file", file);
   const token = localStorage.getItem("kajok.token");
-  const res = await fetch("/api/uploads", {
+  const res = await fetch(`${API_BASE}/api/uploads`, {
     method: "POST",
     body: fd,
     headers: token ? { Authorization: `Bearer ${token}` } : undefined,

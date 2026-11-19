@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useI18n } from "../../i18n/I18nProvider";
-import { api, ApiError } from "../../lib/api";
+import { api, API_BASE, ApiError } from "../../lib/api";
 import { formatDate } from "../../lib/format";
 import type { SellerProfile, SellerStatus } from "../../lib/types";
 
@@ -74,7 +74,7 @@ export function AdminSellersPage() {
   const loadDocument = async (id: number) => {
     try {
       const token = localStorage.getItem("kajok.token");
-      const res = await fetch(`/api/admin/sellers/${id}/document`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+      const res = await fetch(`${API_BASE}/api/admin/sellers/${id}/document`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
       if (!res.ok) throw new Error(t("seller.noDoc"));
       const blob = await res.blob();
       setDocUrl(URL.createObjectURL(blob));

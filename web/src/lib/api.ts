@@ -5,6 +5,13 @@
  * in-browser demo API so the UI is fully explorable without a server.
  */
 
+/**
+ * Optional cross-origin API base (e.g. https://kajok.onrender.com) for static
+ * frontends such as GitHub Pages talking to a hosted backend + database.
+ * Leave unset for same-origin deployments (the API serves the built app).
+ */
+export const API_BASE = (import.meta.env.VITE_API_BASE ?? "").replace(/\/+$/, "");
+
 export class ApiError extends Error {
   constructor(public status: number, message: string, public details?: unknown) {
     super(message);
@@ -45,7 +52,7 @@ export async function api<T>(path: string, options: RequestOptions = {}): Promis
   const token = getToken();
   if (auth && token) headers["Authorization"] = `Bearer ${token}`;
 
-  const res = await fetch(`/api${path}`, {
+  const res = await fetch(`${API_BASE}/api${path}`, {
     method,
     headers,
     body: body !== undefined ? JSON.stringify(body) : undefined,

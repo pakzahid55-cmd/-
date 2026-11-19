@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useI18n } from "../i18n/I18nProvider";
-import { api, ApiError } from "../lib/api";
+import { api, API_BASE, ApiError } from "../lib/api";
 import { isDemo } from "../lib/mode";
 import type { SellerProfile } from "../lib/types";
 
@@ -66,7 +66,7 @@ export function SellerApplyPage() {
         const fd = new FormData();
         fd.append("file", file);
         const token = localStorage.getItem("kajok.token");
-        const res = await fetch("/api/seller/document", { method: "POST", headers: token ? { Authorization: `Bearer ${token}` } : {}, body: fd });
+        const res = await fetch(`${API_BASE}/api/seller/document`, { method: "POST", headers: token ? { Authorization: `Bearer ${token}` } : {}, body: fd });
         if (!res.ok) throw new Error((await res.json().catch(() => ({}))).message ?? t("common.error"));
       }
       setDocName(file.name);

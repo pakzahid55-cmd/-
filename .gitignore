@@ -9,3 +9,6 @@ build/
 server/data/db.json
 coverage/
 *.tsbuildinfo
+
+# Runtime uploads (media files are data, not code)
+server/uploads/

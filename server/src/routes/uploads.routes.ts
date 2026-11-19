@@ -3,6 +3,7 @@ import multer from "multer";
 import fs from "node:fs";
 import path from "node:path";
 import { requireAdmin, requireAuth } from "../middleware/auth.js";
+import { env } from "../config/env.js";
 
 /**
  * POST /api/uploads — admin-only file upload (images & videos).
@@ -41,7 +42,7 @@ uploadsRouter.post("/", requireAuth, requireAdmin, (req, res) => {
       res.status(400).json({ error: "No file uploaded" });
       return;
     }
-    res.status(201).json({ url: `/uploads/${f.filename}`, size: f.size, type: f.mimetype });
+    res.status(201).json({ url: `${env.publicBaseUrl}/uploads/${f.filename}`, size: f.size, type: f.mimetype });
   });
 });
 
