@@ -5,14 +5,15 @@ services:
     name: kajok
     runtime: node
     plan: free
-    branch: arena/31fcf83d-repo
-    buildCommand: npm run build
+    buildCommand: npm run db:schema && npm run build
     startCommand: npm start
-    preDeployCommand: npm run db:schema
     healthCheckPath: /api/health
     envVars:
       - key: NODE_ENV
         value: production
+      # Schema and build tools (tsx, TypeScript, Vite) are dev dependencies.
+      - key: NPM_CONFIG_INCLUDE
+        value: dev
       # Wired automatically from the database created by this blueprint.
       - key: DATABASE_URL
         fromDatabase:

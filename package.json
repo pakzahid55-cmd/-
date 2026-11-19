@@ -11,6 +11,7 @@
     "dev": "npm run dev --workspace=server & npm run dev --workspace=web",
     "dev:server": "npm run dev --workspace=server",
     "dev:web": "npm run dev --workspace=web",
+    "db:schema": "npm run db:schema --workspace=server",
     "build": "npm run build --workspace=server && npm run build --workspace=web",
     "start": "npm run start --workspace=server",
     "test:firebase": "npm run test:firebase --workspace=web"
