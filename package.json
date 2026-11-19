@@ -1,0 +1,21 @@
+{
+  "name": "kajok",
+  "version": "1.0.0",
+  "private": true,
+  "description": "KAJOK — Your Order. Your Way. Premium e-commerce platform.",
+  "workspaces": [
+    "server",
+    "web"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=server & npm run dev --workspace=web",
+    "dev:server": "npm run dev --workspace=server",
+    "dev:web": "npm run dev --workspace=web",
+    "build": "npm run build --workspace=server && npm run build --workspace=web",
+    "start": "npm run start --workspace=server",
+    "test:firebase": "npm run test:firebase --workspace=web"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

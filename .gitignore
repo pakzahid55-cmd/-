@@ -1,0 +1,14 @@
+node_modules/
+dist/
+logo-preview.png
+build/
+.env
+.env.local
+*.log
+.DS_Store
+server/data/db.json
+coverage/
+*.tsbuildinfo
+
+# Runtime uploads (media files are data, not code)
+server/uploads/
