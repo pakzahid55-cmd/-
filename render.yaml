@@ -5,7 +5,7 @@ services:
     name: kajok
     runtime: node
     plan: free
-    buildCommand: npm run db:schema && npm run build
+    buildCommand: npm run build && npm run db:schema
     startCommand: npm start
     healthCheckPath: /api/health
     envVars:
