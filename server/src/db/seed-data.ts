@@ -12,7 +12,7 @@ import type {
 } from "./types.js";
 
 /**
- * Canonical demo dataset for KAJOK.
+ * Canonical demo dataset for KUJUK.
  * Used by the embedded store automatically and by `npm run db:seed` for PostgreSQL.
  * Images live in web/public/images and are served by the web app.
  */
@@ -301,7 +301,7 @@ export const seedProducts: SeedProduct[] = [
 
 export const seedCoupons: Omit<Coupon, "id">[] = [
   { code: "WELCOME10", type: "percent", value: 10, minOrder: 50, active: true, expiresAt: "2027-12-31T00:00:00.000Z" },
-  { code: "KAJOK20", type: "percent", value: 20, minOrder: 150, active: true, expiresAt: "2027-12-31T00:00:00.000Z" },
+  { code: "KUJUK20", type: "percent", value: 20, minOrder: 150, active: true, expiresAt: "2027-12-31T00:00:00.000Z" },
   { code: "SAVE15", type: "fixed", value: 15, minOrder: 75, active: true, expiresAt: "2027-12-31T00:00:00.000Z" },
 ];
 
@@ -309,9 +309,9 @@ export const seedBanners: Omit<Banner, "id">[] = [
   {
     titleEn: "Your Order. Your Way.",
     titleAr: "طلبك. على طريقتك.",
-    subtitleEn: "Discover premium brands, smart deals and delivery you can track — all in one place.",
-    subtitleAr: "اكتشف العلامات الفاخرة والعروض الذكية والتوصيل الذي يمكنك تتبعه — كل ذلك في مكان واحد.",
-    image: "/images/hero.jpg",
+    subtitleEn: "Find everyday favorites and new discoveries from independent sellers, all in one place.",
+    subtitleAr: "اكتشف منتجاتك المفضلة ومنتجات جديدة من بائعين مستقلين، في مكان واحد.",
+    image: "/images/kujuk-campaign.jpg",
     link: "/products",
     active: true,
     sort: 1,
@@ -334,7 +334,7 @@ export interface SeedUser extends Omit<User, "id" | "createdAt" | "passwordHash"
 }
 
 export const seedUsers: SeedUser[] = [
-  { name: "KAJOK Admin", email: "admin@kajok.com", password: "Admin123!", role: "admin", phone: "+201000000001" },
+  { name: "KUJUK Admin", email: "admin@kujuk.com", password: "Admin123!", role: "admin", phone: "+201000000001" },
   { name: "Sara Hassan", email: "sara@example.com", password: "Customer123!", role: "customer", phone: "+201000000002" },
 ];
 
@@ -357,7 +357,7 @@ export const seedReviews: Array<
 > = [
   { userEmail: "sara@example.com", productSlug: "aurora-anc-wireless-headphones", userName: "Sara Hassan", rating: 5, comment: "Best headphones I have ever owned. The noise cancellation is unreal." },
   { userEmail: "sara@example.com", productSlug: "airflex-running-sneakers", userName: "Sara Hassan", rating: 4, comment: "Very light and comfortable for daily runs." },
-  { userEmail: "admin@kajok.com", productSlug: "barista-espresso-machine", userName: "KAJOK Admin", rating: 5, comment: "Café quality espresso at home. The steam wand is excellent." },
+  { userEmail: "admin@kujuk.com", productSlug: "barista-espresso-machine", userName: "KUJUK Admin", rating: 5, comment: "Café quality espresso at home. The steam wand is excellent." },
 ];
 
 // Sample orders so "My Orders" and tracking work out of the box for the demo account.

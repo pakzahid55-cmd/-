@@ -1,4 +1,7 @@
-import { Pool } from "pg";
+import { Pool, type PoolClient } from "pg";
+import { AsyncLocalStorage } from 'node:async_hooks';
+import { HttpError } from '../middleware/error.js';
+import { changeFulfillment, sellerView } from '../lib/order-fulfillment.js';
 import type {
   Address,
   AdminStats,
@@ -19,20 +22,21 @@ import type {
 import type { Store } from "./store.js";
 
 /**
- * PostgreSQL adapter — the canonical production store for KAJOK.
+ * PostgreSQL adapter — the canonical production store for KUJUK.
  * Requires DATABASE_URL. Schema lives in schema.sql (idempotent).
  * Never drops or migrates existing tables: all DDL is CREATE IF NOT EXISTS.
  */
 export class PgStore implements Store {
   readonly kind = "postgres" as const;
   private pool: Pool;
+  private tx = new AsyncLocalStorage<PoolClient>();
 
   constructor(databaseUrl: string) {
     this.pool = new Pool({ connectionString: databaseUrl, max: 10 });
   }
 
   private async q<T extends Record<string, unknown>>(text: string, params: unknown[] = []): Promise<T[]> {
-    const res = await this.pool.query(text, params);
+    const res = await (this.tx.getStore() ?? this.pool).query(text, params);
     return res.rows as T[];
   }
 
@@ -96,6 +100,8 @@ export class PgStore implements Store {
       currency: r.currency ?? "EGP",
       exchangeRate: Number(r.exchange_rate ?? 1),
       customer: r.customer ?? {},
+      sellerOrders: r.seller_orders ?? [],
+      checkoutHash: r.checkout_hash ?? undefined,
       createdAt: new Date(r.created_at).toISOString(),
       updatedAt: new Date(r.updated_at).toISOString(),
     };
@@ -121,9 +127,10 @@ export class PgStore implements Store {
     const rows = await this.q("SELECT * FROM users WHERE firebase_uid = $1", [uid]);
     return rows[0] ? this.mapUser(rows[0]) : null;
   }
-  async updateUser(id: number, data: Partial<Pick<User, "name" | "phone" | "passwordHash" | "firebaseUid" | "photoUrl" | "country" | "emailVerified">>): Promise<User | null> {
+  async updateUser(id: number, data: Partial<Pick<User, "role" | "name" | "phone" | "passwordHash" | "firebaseUid" | "photoUrl" | "country" | "emailVerified">>): Promise<User | null> {
     const sets: string[] = [];
     const params: unknown[] = [id];
+    if (data.role !== undefined) { params.push(data.role); sets.push(`role = $${params.length}`); }
     if (data.name !== undefined) { params.push(data.name); sets.push(`name = $${params.length}`); }
     if (data.phone !== undefined) { params.push(data.phone); sets.push(`phone = $${params.length}`); }
     if (data.passwordHash !== undefined) { params.push(data.passwordHash); sets.push(`password_hash = $${params.length}`); }
@@ -243,6 +250,10 @@ export class PgStore implements Store {
     const params: unknown[] = [];
     const add = (sql: string, value: unknown) => { params.push(value); wheres.push(sql.replace("?", `$${params.length}`)); };
 
+    if (!query.admin) wheres.push("(p.seller_id IS NULL OR s.status = 'approved')");
+    if (query.sellerId) add('p.seller_id = ?', query.sellerId);
+    if (query.inStock) wheres.push('p.stock > 0');
+    if (query.offers) wheres.push('p.discount_price < p.price');
     if (query.ids?.length) { params.push(query.ids); wheres.push(`p.id = ANY($${params.length}::bigint[])`); }
     if (query.featured) wheres.push("p.is_featured = true");
     if (query.isNew) wheres.push("p.is_new = true");
@@ -251,11 +262,9 @@ export class PgStore implements Store {
     if (query.minPrice !== undefined) add("COALESCE(p.discount_price, p.price) >= ?", query.minPrice);
     if (query.maxPrice !== undefined) add("COALESCE(p.discount_price, p.price) <= ?", query.maxPrice);
     if (query.q) {
-      const like = `%${query.q}%`;
-      params.push(like, like, like, like, like, like);
-      wheres.push(
-        `(p.name_en ILIKE $${params.length - 5} OR p.name_ar ILIKE $${params.length - 4} OR p.description_en ILIKE $${params.length - 3} OR b.name ILIKE $${params.length - 2} OR c.name_en ILIKE $${params.length - 1} OR c.name_ar ILIKE $${params.length})`,
-      );
+      params.push(`%${query.q}%`);
+      const placeholder = `$${params.length}`;
+      wheres.push(`(${['p.name_en', 'p.name_ar', 'p.description_en', 'p.description_ar', 'b.name', 'c.name_en', 'c.name_ar', 's.shop_name_en', 's.shop_name_ar'].map(col => `${col} ILIKE ${placeholder}`).join(' OR ')})`);
     }
 
     const where = wheres.length ? `WHERE ${wheres.join(" AND ")}` : "";
@@ -267,18 +276,18 @@ export class PgStore implements Store {
       discount: "(p.price - COALESCE(p.discount_price, p.price)) / NULLIF(p.price,0) DESC",
       newest: "p.created_at DESC",
     };
-    const order = orderMap[query.sort ?? "newest"] ?? orderMap.newest;
+    const order = query.sort && Object.hasOwn(orderMap, query.sort) ? orderMap[query.sort] : orderMap.newest;
     const limit = Math.min(60, Math.max(1, query.limit ?? 12));
-    const page = Math.max(1, query.page ?? 1);
+    const page = Math.min(100_000, Math.max(1, query.page || 1));
     const offset = (page - 1) * limit;
 
     const countRows = await this.q<{ count: string }>(
-      `SELECT COUNT(*)::text AS count FROM products p JOIN categories c ON c.id = p.category_id LEFT JOIN brands b ON b.id = p.brand_id ${where}`,
+      `SELECT COUNT(*)::text AS count FROM products p LEFT JOIN categories c ON c.id = p.category_id LEFT JOIN brands b ON b.id = p.brand_id LEFT JOIN seller_profiles s ON s.user_id = p.seller_id ${where}`,
       params,
     );
     const total = Number(countRows[0]?.count ?? 0);
     const rows = await this.q(
-      `SELECT p.* FROM products p JOIN categories c ON c.id = p.category_id LEFT JOIN brands b ON b.id = p.brand_id ${where} ORDER BY ${order} LIMIT ${limit} OFFSET ${offset}`,
+      `SELECT p.* FROM products p LEFT JOIN categories c ON c.id = p.category_id LEFT JOIN brands b ON b.id = p.brand_id LEFT JOIN seller_profiles s ON s.user_id = p.seller_id ${where} ORDER BY ${order} LIMIT ${limit} OFFSET ${offset}`,
       params,
     );
     return { items: rows.map((r) => this.mapProduct(r)), total, page, pages: Math.max(1, Math.ceil(total / limit)), limit };
@@ -300,7 +309,8 @@ export class PgStore implements Store {
     return this.mapProduct(rows[0]);
   }
   async updateProduct(id: number, data: Partial<Product>): Promise<Product | null> {
-    const existing = await this.q("SELECT * FROM products WHERE id = $1", [id]);
+    return this.transaction(async () => {
+    const existing = await this.q("SELECT * FROM products WHERE id = $1 FOR UPDATE", [id]);
     if (!existing[0]) return null;
     const merged = { ...this.mapProduct(existing[0]), ...data };
     const rows = await this.q(
@@ -308,6 +318,7 @@ export class PgStore implements Store {
       [id, merged.slug, merged.nameEn, merged.nameAr, merged.descriptionEn, merged.descriptionAr, merged.price, merged.discountPrice, merged.brandId || null, merged.categoryId || null, merged.stock, JSON.stringify(merged.images), merged.video ?? null, JSON.stringify(merged.specs), merged.isFeatured, merged.isNew, merged.sku ?? null],
     );
     return this.mapProduct(rows[0]);
+    });
   }
   async deleteProduct(id: number): Promise<boolean> {
     const rows = await this.q("DELETE FROM products WHERE id = $1 RETURNING id", [id]);
@@ -345,26 +356,42 @@ export class PgStore implements Store {
   }
 
   // ---------- Orders ----------
-  async createOrder(data: Omit<Order, "id" | "createdAt" | "updatedAt">): Promise<Order> {
+  private async transaction<T>(work: () => Promise<T>): Promise<T> {
+    if (this.tx.getStore()) return work();
     const client = await this.pool.connect();
     try {
-      await client.query("BEGIN");
-      const rows = await client.query(
-        `INSERT INTO orders (reference, user_id, items, subtotal, discount, shipping, total, coupon_code, payment_method, payment_status, status, currency, exchange_rate, customer)
-         VALUES ($1,$2,$3::jsonb,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14::jsonb) RETURNING *`,
-        [data.reference, data.userId, JSON.stringify(data.items), data.subtotal, data.discount, data.shipping, data.total, data.couponCode, data.paymentMethod, data.paymentStatus, data.status, data.currency, data.exchangeRate, JSON.stringify(data.customer)],
-      );
-      for (const item of data.items) {
-        await client.query("UPDATE products SET stock = GREATEST(0, stock - $1), sales_count = sales_count + $1 WHERE id = $2", [item.quantity, item.productId]);
-      }
-      await client.query("COMMIT");
-      return this.mapOrder(rows.rows[0]);
-    } catch (e) {
-      await client.query("ROLLBACK");
-      throw e;
-    } finally {
-      client.release();
+      await client.query('BEGIN');
+      const result = await this.tx.run(client, work);
+      await client.query('COMMIT');
+      return result;
+    } catch (err) { await client.query('ROLLBACK'); throw err; }
+    finally { client.release(); }
+  }
+  async checkout<T>(userId: number, productIds: number[], work: () => Promise<T>): Promise<T> {
+    return this.transaction(async () => {
+      await this.q('SELECT id FROM users WHERE id = $1 FOR UPDATE', [userId]);
+      await this.q('SELECT id FROM products WHERE id = ANY($1::bigint[]) ORDER BY id FOR UPDATE', [productIds]);
+      await this.q('SELECT s.id FROM seller_profiles s JOIN products p ON s.user_id = p.seller_id WHERE p.id = ANY($1::bigint[]) ORDER BY s.id FOR SHARE OF s', [productIds]);
+      return work();
+    });
+  }
+  async createOrder(data: Omit<Order, "id" | "createdAt" | "updatedAt">): Promise<Order> {
+    if (!this.tx.getStore()) throw new Error('Order writes require checkout transaction');
+    const rows = await this.q(
+      `INSERT INTO orders (reference, user_id, items, subtotal, discount, shipping, total, coupon_code, payment_method, payment_status, status, currency, exchange_rate, customer, seller_orders, seller_ids, checkout_hash)
+       VALUES ($1,$2,$3::jsonb,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14::jsonb,$15::jsonb,$16,$17) RETURNING *`,
+      [data.reference, data.userId, JSON.stringify(data.items), data.subtotal, data.discount, data.shipping, data.total,
+       data.couponCode, data.paymentMethod, data.paymentStatus, data.status, data.currency, data.exchangeRate,
+       JSON.stringify(data.customer), JSON.stringify(data.sellerOrders ?? []), (data.sellerOrders ?? []).flatMap(p => p.sellerId === null ? [] : [p.sellerId]), data.checkoutHash],
+    );
+    for (const item of data.items) {
+      const changed = await this.q('UPDATE products SET stock = stock - $1, sales_count = sales_count + $1 WHERE id = $2 AND stock >= $1 RETURNING id', [item.quantity, item.productId]);
+      if (!changed.length) throw new HttpError(409, 'Stock changed. Please refresh your cart.');
     }
+    return this.mapOrder(rows[0]);
+  }
+  async listOrdersForSeller(sellerId: number) {
+    return (await this.q('SELECT * FROM orders WHERE seller_ids @> ARRAY[$1::bigint] ORDER BY created_at DESC', [sellerId])).map(r => sellerView(this.mapOrder(r), sellerId));
   }
   async listOrdersForUser(userId: number): Promise<Order[]> {
     const rows = await this.q("SELECT * FROM orders WHERE user_id = $1 ORDER BY created_at DESC", [userId]);
@@ -384,14 +411,18 @@ export class PgStore implements Store {
     const rows = await this.q("SELECT * FROM orders WHERE lower(reference) = lower($1)", [reference]);
     return rows[0] ? this.mapOrder(rows[0]) : null;
   }
-  async updateOrderStatus(id: number, status: OrderStatus): Promise<Order | null> {
-    const rows = await this.q(
-      `UPDATE orders SET status = $2, updated_at = now(),
-         payment_status = CASE WHEN $2 = 'delivered' AND payment_method = 'cod' THEN 'paid' ELSE payment_status END
-       WHERE id = $1 RETURNING *`,
-      [id, status],
-    );
-    return rows[0] ? this.mapOrder(rows[0]) : null;
+  async updateOrderStatus(id: number, status: OrderStatus, sellerId?: number | null): Promise<Order | null> {
+    return this.transaction(async () => {
+      const [row] = await this.q('SELECT * FROM orders WHERE id = $1 FOR UPDATE', [id]);
+      if (!row) return null;
+      const { order, restock } = changeFulfillment(this.mapOrder(row), status, sellerId);
+      for (const item of restock.sort((a, b) => a.productId - b.productId)) {
+        await this.q('UPDATE products SET stock = stock + $1, sales_count = GREATEST(0, sales_count - $1) WHERE id = $2', [item.quantity, item.productId]);
+      }
+      const [updated] = await this.q('UPDATE orders SET status=$2, payment_status=$3, updated_at=$4, seller_orders=$5::jsonb WHERE id=$1 RETURNING *',
+        [id, order.status, order.paymentStatus, order.updatedAt, JSON.stringify(order.sellerOrders)]);
+      return this.mapOrder(updated);
+    });
   }
 
   // ---------- Coupons ----------
@@ -479,6 +510,14 @@ export class PgStore implements Store {
     return rows.length > 0;
   }
 
+  async getCommission(): Promise<{ bps: number; updatedAt: string; updatedBy: number } | null> {
+    const [row] = await this.q<{ value: { bps: number; updatedAt: string; updatedBy: number } }>("SELECT value FROM kujuk_settings WHERE key = 'commission'");
+    return row?.value ?? null;
+  }
+  async setCommission(value: { bps: number; updatedAt: string; updatedBy: number }): Promise<void> {
+    await this.q("INSERT INTO kujuk_settings (key,value) VALUES ('commission',$1::jsonb) ON CONFLICT (key) DO UPDATE SET value=excluded.value", [JSON.stringify(value)]);
+  }
+
   // ---------- Reporting ----------
   async adminStats(): Promise<AdminStats> {
     const revenue = await this.q<{ total: string }>("SELECT COALESCE(SUM(total / NULLIF(exchange_rate,0)),0)::text AS total FROM orders WHERE status <> 'cancelled'");
@@ -554,6 +593,10 @@ export class PgStore implements Store {
     return {
       id: Number(r.id),
       userId: Number(r.user_id),
+      logo: r.logo ?? null,
+      cover: r.cover ?? null,
+      descriptionEn: r.description_en ?? "",
+      descriptionAr: r.description_ar ?? "",
       shopNameEn: r.shop_name_en,
       shopNameAr: r.shop_name_ar,
       legalName: r.legal_name,
@@ -586,14 +629,19 @@ export class PgStore implements Store {
     return rows[0] ? this.mapSeller(rows[0]) : null;
   }
   async updateSellerProfile(id: number, data: Partial<SellerProfile>): Promise<SellerProfile | null> {
-    const existing = (await this.q("SELECT * FROM seller_profiles WHERE id = $1", [id])) as Record<string, any>[];
-    if (!existing[0]) return null;
-    const merged = { ...this.mapSeller(existing[0]), ...data };
-    const rows = await this.q(
-      `UPDATE seller_profiles SET shop_name_en=$2, shop_name_ar=$3, legal_name=$4, passport_number=$5, passport_country=$6, passport_expiry=$7, business_info=$8, passport_document=$9, status=$10, review_note=$11, reviewed_by=$12 WHERE id=$1 RETURNING *`,
-      [id, merged.shopNameEn, merged.shopNameAr, merged.legalName, merged.passportNumber, merged.passportCountry, merged.passportExpiry, merged.businessInfo, merged.passportDocument, merged.status, merged.reviewNote, merged.reviewedBy],
-    );
-    return this.mapSeller(rows[0] as Record<string, any>);
+    return this.transaction(async () => {
+      const [existing] = await this.q("SELECT * FROM seller_profiles WHERE id = $1 FOR UPDATE", [id]);
+      if (!existing) return null;
+      const merged = { ...this.mapSeller(existing), ...data };
+      const [row] = await this.q(
+        `UPDATE seller_profiles SET shop_name_en=$2, shop_name_ar=$3, legal_name=$4, passport_number=$5, passport_country=$6, passport_expiry=$7,
+         business_info=$8, passport_document=$9, status=$10, review_note=$11, reviewed_by=$12, logo=$13, cover=$14, description_en=$15, description_ar=$16, updated_at=now()
+         WHERE id=$1 RETURNING *`,
+        [id, merged.shopNameEn, merged.shopNameAr, merged.legalName, merged.passportNumber, merged.passportCountry, merged.passportExpiry, merged.businessInfo, merged.passportDocument,
+         merged.status, merged.reviewNote, merged.reviewedBy, merged.logo, merged.cover, merged.descriptionEn, merged.descriptionAr],
+      );
+      return this.mapSeller(row);
+    });
   }
   async listSellerProfiles(): Promise<SellerProfile[]> {
     const rows = (await this.q("SELECT * FROM seller_profiles ORDER BY id DESC")) as Record<string, any>[];

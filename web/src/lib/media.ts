@@ -1,18 +1,10 @@
-/**
- * Media upload helpers — works in BOTH modes:
- *  - Demo (static GitHub Pages): images become compressed data-URLs; videos are
- *    stored in IndexedDB and referenced by "demo-video:<id>" markers.
- *  - Real app: files upload to POST /api/uploads (server stores under /uploads).
- */
-import { API_BASE } from "./api";
-import { isDemo } from "./mode";
+import { API_BASE, getToken } from "./api";
 
 const MAX_IMAGE_SIDE = 1200;
-const MAX_VIDEO_BYTES = 80 * 1024 * 1024;
 
 /* ---------------- images ---------------- */
 
-export function compressImage(file: File): Promise<string> {
+export function compressImage(file: File): Promise<Blob> {
   return new Promise((resolve, reject) => {
     if (!file.type.startsWith("image/")) {
       reject(new Error("Not an image file"));
@@ -37,7 +29,7 @@ export function compressImage(file: File): Promise<string> {
       URL.revokeObjectURL(url);
       // PNG keeps transparency; everything else becomes JPEG for size.
       const keepPng = file.type === "image/png" || file.type === "image/svg+xml";
-      resolve(canvas.toDataURL(keepPng ? "image/png" : "image/jpeg", 0.82));
+      canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error("Could not compress image")), keepPng ? "image/png" : "image/jpeg", 0.82);
     };
     img.onerror = () => {
       URL.revokeObjectURL(url);
@@ -47,87 +39,15 @@ export function compressImage(file: File): Promise<string> {
   });
 }
 
-/* ---------------- demo video store (IndexedDB) ---------------- */
-
-const DB_NAME = "kajok-media";
-const STORE = "videos";
-
-function openDb(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, 1);
-    req.onupgradeneeded = () => {
-      if (!req.result.objectStoreNames.contains(STORE)) req.result.createObjectStore(STORE);
-    };
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
-}
-
-function uuid(): string {
-  return "v" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
-}
-
-export async function putVideo(file: File): Promise<string> {
-  if (file.size > MAX_VIDEO_BYTES) throw new Error("Video is too large (max 80 MB)");
-  const db = await openDb();
-  const id = uuid();
-  await new Promise<void>((resolve, reject) => {
-    const tx = db.transaction(STORE, "readwrite");
-    tx.objectStore(STORE).put(file, id);
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-  });
-  db.close();
-  return `demo-video:${id}`;
-}
-
-export async function getVideoBlob(ref: string): Promise<Blob | null> {
-  try {
-    const db = await openDb();
-    const blob = await new Promise<Blob | null>((resolve, reject) => {
-      const tx = db.transaction(STORE, "readonly");
-      const req = tx.objectStore(STORE).get(ref.replace("demo-video:", ""));
-      req.onsuccess = () => resolve((req.result as Blob) ?? null);
-      req.onerror = () => reject(req.error);
-    });
-    db.close();
-    return blob;
-  } catch {
-    return null;
-  }
-}
-
-export async function deleteVideo(ref: string): Promise<void> {
-  try {
-    const db = await openDb();
-    await new Promise<void>((resolve) => {
-      const tx = db.transaction(STORE, "readwrite");
-      tx.objectStore(STORE).delete(ref.replace("demo-video:", ""));
-      tx.oncomplete = () => resolve();
-      tx.onerror = () => resolve();
-    });
-    db.close();
-  } catch {
-    /* ignore */
-  }
-}
-
-/* ---------------- unified API ---------------- */
-
-/** Upload one file and return a src usable by MediaVideo / <img>. */
 export async function uploadMedia(file: File, kind: "image" | "video"): Promise<string> {
   const isImage = file.type.startsWith("image/");
   if (kind === "image" && !isImage) throw new Error("Please choose an image file");
   if (kind === "video" && isImage) throw new Error("Please choose a video file");
 
-  if (isDemo) {
-    if (isImage) return compressImage(file);
-    return putVideo(file);
-  }
-
+  if (file.size > 12 * 1024 * 1024) throw new Error('File exceeds the 12 MB upload limit');
   const fd = new FormData();
   fd.append("file", file);
-  const token = localStorage.getItem("kajok.token");
+  const token = await getToken();
   const res = await fetch(`${API_BASE}/api/uploads`, {
     method: "POST",
     body: fd,
@@ -138,18 +58,4 @@ export async function uploadMedia(file: File, kind: "image" | "video"): Promise<
   return data.url;
 }
 
-export function isVideoSrc(src: string): boolean {
-  if (!src) return false;
-  if (src.startsWith("demo-video:") || src.startsWith("data:video/")) return true;
-  const clean = src.split("?")[0] ?? "";
-  return /\.(mp4|webm|mov|m4v|ogv)$/i.test(clean);
-}
-
-/** Resolve a possibly-stored demo ref into a displayable URL. */
-export async function resolveMediaSrc(src: string): Promise<string> {
-  if (src.startsWith("demo-video:")) {
-    const blob = await getVideoBlob(src);
-    return blob ? URL.createObjectURL(blob) : "";
-  }
-  return src;
-}
+export function isVideoSrc(src: string) { return /\.(mp4|webm|mov|m4v|ogv)$/i.test(src.split("?")[0]); }

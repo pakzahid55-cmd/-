@@ -1,0 +1,8 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // All KUJUK data is accessed through the API. ID tokens alone do not allow
+    // direct reads or writes, including orders, profiles, inventory and roles.
+    match /{doc=**} { allow read, write: if false; }
+  }
+}

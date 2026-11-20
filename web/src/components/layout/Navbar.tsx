@@ -7,40 +7,13 @@ import { cartTotals, useCart } from "../../store/cart";
 import { useWishlist } from "../../store/wishlist";
 import { SearchBar } from "../SearchBar";
 
+import { firebaseEnabled } from "../../lib/firebase";
+
 export function Logo({ light = false }: { light?: boolean }) {
   return (
-    <Link to="/" className="flex items-center gap-2.5" aria-label="KAJOK كجوك">
-      <svg width="42" height="38" viewBox="0 0 70 64" aria-hidden="true">
-        <defs>
-          <linearGradient id="kajokK" x1="1" y1="0" x2="0" y2="1">
-            <stop offset="0" stopColor={light ? "#C4B5FD" : "#A78BFA"} />
-            <stop offset="1" stopColor={light ? "#7C4DDB" : "#32145F"} />
-          </linearGradient>
-          <linearGradient id="kajokO" x1="1" y1="0" x2="0" y2="1">
-            <stop offset="0" stopColor={light ? "#A78BFA" : "#7C4DDB"} />
-            <stop offset="1" stopColor={light ? "#6C3BCE" : "#4B2591"} />
-          </linearGradient>
-        </defs>
-        <path d="M57 5 Q54 24 24 55 Q35 32 57 5 Z" fill="url(#kajokK)" />
-        <path d="M35 25 Q45 47 67 57 Q57 35 35 25 Z" fill="url(#kajokK)" />
-        <circle cx="21" cy="32" r="13.5" fill="none" stroke="url(#kajokO)" strokeWidth="7" />
-        <circle cx="21" cy="32" r="9.5" fill={light ? "#2A1052" : "#F8F6FC"} />
-        <text
-          x="21"
-          y="38.5"
-          textAnchor="middle"
-          fontFamily="Tajawal, sans-serif"
-          fontWeight="700"
-          fontSize="15"
-          fill={light ? "#F8F6FC" : "#32145F"}
-        >
-          ج
-        </text>
-      </svg>
-      <div className="leading-tight">
-        <span className={`block text-lg font-extrabold tracking-wide ${light ? "text-white" : "text-deep"}`}>KAJOK</span>
-        <span className={`block text-[15px] font-extrabold ${light ? "text-accent" : "text-royal"}`}>كجوك</span>
-      </div>
+    <Link to="/" className="flex items-center gap-2.5" aria-label="KUJUK كجوك">
+      <img src="/kujuk-emblem.png" alt="" width="41" height="44" className={`h-10 w-10 object-contain ${light ? "brightness-0 invert" : ""}`} />
+      <span className={`text-[26px] font-extrabold tracking-[-0.07em] ${light ? "text-white" : "text-deep"}`}>KUJUK<span className="text-royal">.</span></span>
     </Link>
   );
 }
@@ -66,16 +39,15 @@ export function Navbar() {
     { to: "/products", label: t("nav.products") },
     { to: "/categories", label: t("nav.categories") },
     { to: "/offers", label: t("nav.offers") },
-    { to: "/about", label: t("nav.about") },
-    { to: "/contact", label: t("nav.contact") },
+
   ];
 
   return (
-    <header className="sticky top-0 z-40 border-b border-line bg-white/95 backdrop-blur">
+    <header className="sticky top-0 z-40 border-b border-line bg-white">
       {/* Top strip */}
-      <div className="bg-deep text-white">
-        <div className="container-kajok flex h-8 items-center justify-between text-xs">
-          <p className="hidden sm:block">{t("product.freeShipping")}</p>
+      <div className="bg-[#211137] text-white">
+        <div className="container-kujuk flex h-9 items-center justify-between text-xs">
+          <p className="hidden sm:block">{lang === "ar" ? "كجوك • طلبك. على طريقتك." : "KUJUK MARKETPLACE  /  YOUR ORDER. YOUR WAY."}</p>
           <div className="flex items-center gap-4">
             <Link to="/orders/track" className="hover:text-accent">
               {t("nav.trackOrder")}
@@ -91,7 +63,7 @@ export function Navbar() {
               title={info.rate ? t("currency.switch") : t("currency.noRate")}
               aria-label={t("currency.switch")}
             >
-              {currency === "SDG" ? "🇸🇩 ج.س" : "🇪🇬 ج.م"}
+              {currency === "SDG" ? (lang === "ar" ? "ج.س" : "SDG") : (lang === "ar" ? "ج.م" : "EGP")}
             </button>
             <button type="button" onClick={toggleLang} className="font-semibold hover:text-accent" aria-label={t("nav.language")}>
               {t("nav.language")}
@@ -101,7 +73,7 @@ export function Navbar() {
       </div>
 
       {/* Main bar */}
-      <div className="container-kajok flex items-center gap-4 py-3">
+      <div className="container-kujuk flex items-center gap-5 py-4">
         <div className="lg:hidden">
           <button
             type="button"
@@ -134,6 +106,9 @@ export function Navbar() {
             <span className="hidden md:block">{user ? t("nav.greeting", { name: user.name.split(" ")[0] }) : t("nav.login")}</span>
           </Link>
 
+          {user && firebaseEnabled && <Link to="/notifications" className="rounded-lg p-2 hover:bg-surface" aria-label={lang === 'ar' ? 'الإشعارات' : 'Notifications'}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path d="M6 9a6 6 0 1 1 12 0c0 6 3 7 3 7H3s3-1 3-7m7.75 10a2 2 0 0 1-3.5 0" /></svg>
+          </Link>}
           <Link to="/wishlist" className="relative rounded-lg p-2 hover:bg-surface" aria-label={t("nav.wishlist")}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
               <path d="M20.8 4.6a5.5 5.5 0 00-7.8 0L12 5.6l-1-1a5.5 5.5 0 00-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 000-7.8z" />
@@ -180,13 +155,13 @@ export function Navbar() {
       </div>
 
       {/* Mobile search */}
-      <div className="container-kajok pb-3 lg:hidden">
+      <div className="container-kujuk pb-3 lg:hidden">
         <SearchBar onNavigate={() => setMobileOpen(false)} />
       </div>
 
       {/* Desktop links */}
       <nav className="hidden border-t border-line lg:block" aria-label="Main">
-        <div className="container-kajok flex items-center gap-7 py-2.5">
+        <div className="container-kujuk flex items-center gap-7 py-2.5">
           {links.map((l) => (
             <NavLink key={l.to} to={l.to} className={navLinkClass} end={l.to === "/"}>
               {l.label}
@@ -198,7 +173,7 @@ export function Navbar() {
             </NavLink>
           )}
           <div className="ms-auto flex items-center gap-2 text-xs text-slate-400">
-            <span className="badge-kajok bg-surface text-deep">{lang === "ar" ? "عربي" : "EN"}</span>
+            <span className="badge-kujuk bg-surface text-deep">{lang === "ar" ? "الدفع عند الاستلام" : "CASH ON DELIVERY"}</span>
           </div>
         </div>
       </nav>
@@ -206,7 +181,7 @@ export function Navbar() {
       {/* Mobile menu */}
       {mobileOpen && (
         <nav className="border-t border-line bg-white lg:hidden" aria-label="Mobile">
-          <div className="container-kajok flex flex-col py-2">
+          <div className="container-kujuk flex flex-col py-2">
             {[...links, ...(user ? [{ to: "/orders", label: t("nav.orders") }, { to: "/account", label: t("nav.account") }] : [])].map((l) => (
               <NavLink
                 key={l.to}

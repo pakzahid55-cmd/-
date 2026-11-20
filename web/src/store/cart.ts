@@ -60,7 +60,7 @@ export const useCart = create<CartState>()(
       applyCoupon: (code, discount) => set({ couponCode: code, couponDiscount: discount }),
       removeCoupon: () => set({ couponCode: null, couponDiscount: 0 }),
     }),
-    { name: "kajok.cart" },
+    { name: "kujuk.cart" },
   ),
 );
 

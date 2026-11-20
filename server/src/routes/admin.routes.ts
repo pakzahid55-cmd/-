@@ -1,6 +1,9 @@
+import { catalogPrice, mediaRef, slug } from "../lib/catalog-validation.js";
+import { env } from "../config/env.js";
+import { money } from "../lib/order-fulfillment.js";
+import type { Store } from "../db/store.js";
 import { Router } from "express";
-import path from "node:path";
-import fs from "node:fs";
+import { streamMedia } from "../lib/media-storage.js";
 import { z } from "zod";
 import { asyncHandler, validateBody } from "../lib/validate.js";
 import { requireAdmin, requireAuth, toPublicUser } from "../middleware/auth.js";
@@ -14,25 +17,42 @@ router.use(requireAuth, requireAdmin);
 router.get(
   "/stats",
   asyncHandler(async (req, res) => {
-    res.json(await req.app.locals.store.adminStats());
+    const store: Store = req.app.locals.store;
+    const stats = await store.adminStats();
+    if (stats.totalSellers === undefined) {
+      const [sellers, orders] = await Promise.all([store.listSellerProfiles(), store.listOrders()]);
+      stats.totalSellers = sellers.filter(s => s.status === 'approved').length;
+      stats.pendingSellers = sellers.filter(s => ['pending', 'under_review'].includes(s.status)).length;
+      stats.totalCommission = money(orders.reduce((sum, order) => sum + (order.sellerOrders ?? []).filter(p => p.status === 'delivered').reduce((a, p) => a + p.commission, 0) / order.exchangeRate, 0));
+    }
+    res.json(stats);
   }),
 );
 
+router.get('/commission', asyncHandler(async (req, res) => {
+  res.json(await req.app.locals.store.getCommission() ?? { bps: env.commissionBps, updatedAt: null });
+}));
+router.put('/commission', validateBody(z.object({ bps: z.number().int().min(0).max(10000) })), asyncHandler(async (req, res) => {
+  const setting = { bps: req.body.bps, updatedAt: new Date().toISOString(), updatedBy: req.user!.id };
+  await req.app.locals.store.setCommission(setting);
+  res.json(setting);
+}));
+
 // ---------- Products ----------
 const productSchema = z.object({
-  slug: z.string().min(2).max(120),
+  slug,
   nameEn: z.string().min(2).max(160),
   nameAr: z.string().min(2).max(160),
   descriptionEn: z.string().max(5000).default(""),
   descriptionAr: z.string().max(5000).default(""),
-  price: z.number().min(0),
-  discountPrice: z.number().min(0).nullable().default(null),
+  price: catalogPrice,
+  discountPrice: catalogPrice.nullable().default(null),
   brandId: z.number().int().nonnegative().default(0),
   categoryId: z.number().int().nonnegative().default(0),
-  stock: z.number().int().min(0).default(0),
-  images: z.array(z.string().max(2_000_000)).max(12).default([]),
-  video: z.string().max(2_000_000).nullish(),
-  specs: z.record(z.string(), z.string()).default({}),
+  stock: z.number().int().min(0).max(1_000_000).default(0),
+  images: z.array(mediaRef).max(12).default([]),
+  video: mediaRef.nullish(),
+  specs: z.record(z.string().max(60), z.string().max(250)).refine(row => Object.keys(row).length <= 30).default({}),
   isFeatured: z.boolean().default(false),
   isNew: z.boolean().default(false),
   sku: z.string().max(60).nullable().default(null),
@@ -45,7 +65,7 @@ router.get(
     const page = Number(req.query.page ?? 1);
     const limit = Number(req.query.limit ?? 20);
     const q = typeof req.query.q === "string" ? req.query.q : undefined;
-    res.json(await req.app.locals.store.listProducts({ page, limit, q }));
+    res.json(await req.app.locals.store.listProducts({ page, limit, q, admin: true }));
   }),
 );
 
@@ -82,7 +102,7 @@ const categorySchema = z.object({
   slug: z.string().min(2).max(80),
   nameEn: z.string().min(2).max(80),
   nameAr: z.string().min(2).max(80),
-  image: z.string().max(500).default(""),
+  image: mediaRef.default(""),
   sort: z.number().int().default(0),
 });
 
@@ -122,8 +142,8 @@ router.get("/orders", asyncHandler(async (req, res) => {
   res.json({ items: await req.app.locals.store.listOrders(status) });
 }));
 
-router.put("/orders/:id/status", validateBody(z.object({ status: z.enum(statuses as [OrderStatus, ...OrderStatus[]]) })), asyncHandler(async (req, res) => {
-  const order = await req.app.locals.store.updateOrderStatus(Number(req.params.id), req.body.status);
+router.put("/orders/:id/status", validateBody(z.object({ status: z.enum(statuses as [OrderStatus, ...OrderStatus[]]), sellerId: z.number().int().positive().safe().nullable().optional() })), asyncHandler(async (req, res) => {
+  const order = await req.app.locals.store.updateOrderStatus(Number(req.params.id), req.body.status, req.body.sellerId);
   if (!order) throw new HttpError(404, "Order not found");
   res.json({ order });
 }));
@@ -169,9 +189,9 @@ const bannerSchema = z.object({
   titleAr: z.string().min(2).max(120),
   subtitleEn: z.string().max(240).default(""),
   subtitleAr: z.string().max(240).default(""),
-  image: z.string().max(2_000_000).default(""),
-  video: z.string().max(2_000_000).nullish(),
-  link: z.string().max(200).default("/"),
+  image: mediaRef.default(""),
+  video: mediaRef.nullish(),
+  link: z.string().max(200).regex(/^\/(?![\\/])[^\s\\]*$/).default("/"),
   active: z.boolean().default(true),
   sort: z.number().int().default(0),
 });
@@ -241,12 +261,7 @@ router.get(
     const store = req.app.locals.store;
     const profile = await store.getSellerProfileById(Number(req.params.id));
     if (!profile || !profile.passportDocument) throw new HttpError(404, "No passport document on file");
-    const filePath = path.resolve(process.cwd(), "data", "passports", path.basename(profile.passportDocument));
-    if (!fs.existsSync(filePath)) throw new HttpError(404, "Passport file is missing from storage");
-    const type = filePath.endsWith(".pdf") ? "application/pdf" : "image/jpeg";
-    res.setHeader("Content-Type", type);
-    res.setHeader("Cache-Control", "private, no-store");
-    fs.createReadStream(filePath).pipe(res);
+    await streamMedia("passports", profile.passportDocument, res);
   }),
 );
 
@@ -262,13 +277,14 @@ router.put(
     const store = req.app.locals.store;
     const profile = await store.getSellerProfileById(Number(req.params.id));
     if (!profile) throw new HttpError(404, "Seller application not found");
+    if (req.body.status === "approved" && !profile.passportDocument) throw new HttpError(409, "Review the submitted verification document before approving");
     const updated = await store.updateSellerProfile(profile.id, {
       status: req.body.status,
       reviewNote: req.body.reviewNote ?? profile.reviewNote,
       reviewedBy: req.user!.email ?? String(req.user!.id),
     });
     // Promotion to the seller role happens only on approval.
-    if (req.body.status === "approved") {
+    if (req.body.status === "approved" && store.kind !== "firestore") {
       await store.updateUser(profile.userId, { role: "seller" });
     }
     res.json({ profile: updated });

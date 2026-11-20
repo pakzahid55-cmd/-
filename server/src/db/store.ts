@@ -13,11 +13,12 @@ import type {
   ProductQuery,
   Review,
   SellerProfile,
+  SellerOrderView,
   User,
 } from "./types.js";
 
 /**
- * Storage contract for the KAJOK platform.
+ * Storage contract for the KUJUK platform.
  *
  * Two adapters implement this interface:
  *  - PgStore      → PostgreSQL (canonical production store, see schema.sql)
@@ -26,14 +27,14 @@ import type {
  * Both are API-compatible so the REST layer never changes between them.
  */
 export interface Store {
-  readonly kind: "postgres" | "memory";
+  readonly kind: "postgres" | "memory" | "firestore";
 
   // Users
   findUserByEmail(email: string): Promise<User | null>;
   findUserById(id: number): Promise<User | null>;
   findUserByFirebaseUid(uid: string): Promise<User | null>;
   createUser(data: Omit<User, "id" | "createdAt">): Promise<User>;
-  updateUser(id: number, data: Partial<Pick<User, "name" | "phone" | "passwordHash" | "firebaseUid" | "photoUrl" | "country" | "emailVerified">>): Promise<User | null>;
+  updateUser(id: number, data: Partial<Pick<User, "role" | "name" | "phone" | "passwordHash" | "firebaseUid" | "photoUrl" | "country" | "emailVerified">>): Promise<User | null>;
   listUsers(): Promise<User[]>;
 
   // Addresses
@@ -66,12 +67,14 @@ export interface Store {
   createReview(data: Omit<Review, "id" | "createdAt">): Promise<Review>;
 
   // Orders
+  checkout<T>(userId: number, productIds: number[], work: () => Promise<T>): Promise<T>;
+  listOrdersForSeller(sellerId: number): Promise<SellerOrderView[]>;
   createOrder(data: Omit<Order, "id" | "createdAt" | "updatedAt">): Promise<Order>;
   listOrdersForUser(userId: number): Promise<Order[]>;
   listOrders(status?: OrderStatus): Promise<Order[]>;
   getOrderById(id: number): Promise<Order | null>;
   getOrderByReference(reference: string): Promise<Order | null>;
-  updateOrderStatus(id: number, status: OrderStatus): Promise<Order | null>;
+  updateOrderStatus(id: number, status: OrderStatus, sellerId?: number | null): Promise<Order | null>;
 
   // Coupons
   listCoupons(): Promise<Coupon[]>;
@@ -85,6 +88,9 @@ export interface Store {
   createBanner(data: Omit<Banner, "id">): Promise<Banner>;
   updateBanner(id: number, data: Partial<Banner>): Promise<Banner | null>;
   deleteBanner(id: number): Promise<boolean>;
+
+  getCommission(): Promise<{ bps: number; updatedAt: string; updatedBy: number } | null>;
+  setCommission(value: { bps: number; updatedAt: string; updatedBy: number }): Promise<void>;
 
   // Reporting
   adminStats(): Promise<AdminStats>;

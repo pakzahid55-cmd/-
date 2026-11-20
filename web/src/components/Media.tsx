@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { useI18n } from "../i18n/I18nProvider";
-import { compressImage, deleteVideo, isVideoSrc, resolveMediaSrc, uploadMedia } from "../lib/media";
+import { compressImage, isVideoSrc, uploadMedia } from "../lib/media";
 
-/** Video player that understands demo-video: refs, data-URLs and normal URLs. */
+/** Marketplace promo and product videos. */
 export function MediaVideo({
   src,
   poster,
@@ -16,28 +16,10 @@ export function MediaVideo({
   autoPlay?: boolean;
   loop?: boolean;
 }) {
-  const [resolved, setResolved] = useState("");
-  useEffect(() => {
-    let alive = true;
-    let objectUrl = "";
-    void resolveMediaSrc(src).then((url) => {
-      if (!alive) {
-        if (url.startsWith("blob:")) URL.revokeObjectURL(url);
-        return;
-      }
-      objectUrl = url;
-      setResolved(url);
-    });
-    return () => {
-      alive = false;
-      if (objectUrl.startsWith("blob:")) URL.revokeObjectURL(objectUrl);
-    };
-  }, [src]);
-
-  if (!resolved) return null;
+  if (!src) return null;
   return (
     <video
-      src={resolved}
+      src={src}
       poster={poster}
       controls={!autoPlay}
       autoPlay={autoPlay}
@@ -73,7 +55,8 @@ export function ImagePicker({
     try {
       const next: string[] = [];
       for (const f of Array.from(files).slice(0, 8)) {
-        next.push(await compressImage(f));
+        const blob = await compressImage(f);
+        next.push(await uploadMedia(new File([blob], 'kujuk-product.jpg', { type: blob.type }), 'image'));
       }
       onChange(single ? next.slice(0, 1) : [...images, ...next].slice(0, 8));
     } catch {
@@ -125,7 +108,7 @@ export function ImagePicker({
           value={url}
           onChange={(e) => setUrl(e.target.value)}
           placeholder={t("admin.orPasteUrl")}
-          className="input-kajok"
+          className="input-kujuk"
           dir="ltr"
         />
         <button
@@ -179,7 +162,6 @@ export function VideoPicker({ video, onChange }: { video: string | null; onChang
           <button
             type="button"
             onClick={() => {
-              if (video.startsWith("demo-video:")) void deleteVideo(video);
               onChange(null);
             }}
             className="absolute end-2 top-2 rounded-full bg-ink/70 px-2.5 py-1 text-xs text-white"
@@ -206,7 +188,7 @@ export function VideoPicker({ video, onChange }: { video: string | null; onChang
           value={url}
           onChange={(e) => setUrl(e.target.value)}
           placeholder={t("admin.orPasteUrl")}
-          className="input-kajok flex-1"
+          className="input-kujuk flex-1"
           dir="ltr"
         />
         <button

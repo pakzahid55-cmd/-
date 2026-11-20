@@ -65,6 +65,10 @@ export type SellerStatus = "pending" | "under_review" | "approved" | "rejected" 
 
 /** Seller verification record. Passport fields are private — masked in lists. */
 export interface SellerProfile {
+  descriptionEn?: string;
+  descriptionAr?: string;
+  logo?: string | null;
+  cover?: string | null;
   id: number;
   userId: number;
   shopNameEn: string;
@@ -116,6 +120,9 @@ export type OrderStatus = "pending" | "processing" | "shipped" | "delivered" | "
 export type Currency = "EGP" | "SDG";
 
 export interface Order {
+  amountDue?: number;
+  shipments?: { reference: string; status: OrderStatus; total: number }[];
+  sellerOrders?: { sellerId: number | null; reference: string; status: OrderStatus; commission: number; total: number }[];
   id: number;
   reference: string;
   userId: number;
@@ -137,6 +144,7 @@ export interface Order {
     phone: string;
     country: string;
     city: string;
+    area?: string;
     address: string;
     instructions: string | null;
   };
@@ -168,6 +176,9 @@ export interface Banner {
 }
 
 export interface AdminStats {
+  totalSellers?: number;
+  pendingSellers?: number;
+  totalCommission?: number;
   totalRevenue: number;
   totalOrders: number;
   totalCustomers: number;

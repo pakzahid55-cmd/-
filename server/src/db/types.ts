@@ -78,6 +78,10 @@ export type SellerStatus = "pending" | "under_review" | "approved" | "rejected" 
  * Approval is a genuine manual admin action — never automated.
  */
 export interface SellerProfile {
+  descriptionEn?: string;
+  descriptionAr?: string;
+  logo?: string | null;
+  cover?: string | null;
   id: number;
   userId: number;
   shopNameEn: string;
@@ -123,6 +127,8 @@ export interface ExchangeRate {
 }
 
 export interface OrderItem {
+  sellerId?: number | null;
+  priceEgp?: number;
   productId: number;
   slug: string;
   nameEn: string;
@@ -133,6 +139,7 @@ export interface OrderItem {
 }
 
 export interface OrderCustomer {
+  area?: string;
   name: string;
   phone: string;
   country: string;
@@ -141,7 +148,27 @@ export interface OrderCustomer {
   instructions: string | null;
 }
 
+export interface SellerOrder {
+  reference: string;
+  sellerId: number | null;
+  items: OrderItem[];
+  subtotal: number;
+  discount: number;
+  shipping: number;
+  total: number;
+  commission: number;
+  commissionBps: number;
+  earnings: number;
+  status: OrderStatus;
+}
+
+export type SellerOrderView = SellerOrder & Pick<Order, "id" | "currency" | "exchangeRate" | "customer" | "paymentMethod" | "createdAt" | "updatedAt">;
+
 export interface Order {
+  sellerOrders?: SellerOrder[];
+  // Internal hash: ties a client idempotency key to the exact request.
+  checkoutHash?: string;
+
   id: number;
   reference: string;
   userId: number;
@@ -187,6 +214,10 @@ export interface Banner {
 }
 
 export interface ProductQuery {
+  sellerId?: number;
+  admin?: boolean;
+  inStock?: boolean;
+  offers?: boolean;
   q?: string;
   category?: string;
   brand?: string;
@@ -215,6 +246,9 @@ export interface SalesPoint {
 }
 
 export interface AdminStats {
+  totalCommission?: number;
+  totalSellers?: number;
+  pendingSellers?: number;
   totalRevenue: number;
   totalOrders: number;
   totalCustomers: number;

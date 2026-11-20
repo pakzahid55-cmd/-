@@ -1,38 +1,15 @@
-# Render Blueprint — KAJOK real (production) deployment
-# One click provisions: PostgreSQL database + web service (API + storefront + uploads).
+# Public, disposable testing environment. Not the production/Firebase deployment.
 services:
   - type: web
-    name: kajok
+    name: kujuk-preview
     runtime: node
+    branch: arena/09023e9f-repo
     plan: free
-    buildCommand: npm run build && npm run db:schema
-    startCommand: npm start
+    buildCommand: npm ci --include=dev && npm run build:hosted-preview
+    startCommand: npm run start:hosted-preview
     healthCheckPath: /api/health
     envVars:
-      - key: NODE_ENV
-        value: production
-      # Schema and build tools (tsx, TypeScript, Vite) are dev dependencies.
-      - key: NPM_CONFIG_INCLUDE
-        value: dev
-      # Wired automatically from the database created by this blueprint.
-      - key: DATABASE_URL
-        fromDatabase:
-          name: kajok-db
-          property: connectionString
-      # Auto-generated strong secret — rotate it from the Render dashboard anytime.
-      - key: JWT_SECRET
-        generateValue: true
-      - key: SHIPPING_FEE
-        value: "5.99"
-      - key: FREE_SHIPPING_OVER
-        value: "150"
-      # Online payments stay disabled until a real provider is connected.
-      # Never simulate successful payments.
-      - key: ONLINE_PAYMENTS_ENABLED
-        value: "false"
-
-databases:
-  - name: kajok-db
-    plan: free
-    databaseName: kajok
-    ipAllowList: []
+      - key: NODE_VERSION
+        value: 22.22.3
+      - key: NEXT_TELEMETRY_DISABLED
+        value: "1"

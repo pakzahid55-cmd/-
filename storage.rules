@@ -1,0 +1,8 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // The server validates file signatures and streams catalogue assets.
+    // Passport files are served only from an authenticated admin endpoint.
+    match /{object=**} { allow read, write: if false; }
+  }
+}

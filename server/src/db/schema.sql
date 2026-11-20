@@ -1,4 +1,4 @@
--- KAJOK PostgreSQL schema
+-- KUJUK PostgreSQL schema
 -- This schema is the canonical relational model for the platform.
 -- Apply with: npm run db:schema --workspace=server (requires DATABASE_URL)
 
@@ -163,3 +163,20 @@ CREATE TABLE IF NOT EXISTS banners (
   active     BOOLEAN NOT NULL DEFAULT true,
   sort       INTEGER NOT NULL DEFAULT 0
 );
+
+-- Immutable financial/ownership snapshots and scoped order lookups.
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS checkout_hash TEXT;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS seller_orders JSONB NOT NULL DEFAULT '[]';
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS seller_ids BIGINT[] NOT NULL DEFAULT '{}';
+CREATE INDEX IF NOT EXISTS idx_kujuk_order_sellers ON orders USING gin(seller_ids);
+ALTER TABLE orders ALTER COLUMN subtotal TYPE NUMERIC(18,2);
+ALTER TABLE orders ALTER COLUMN discount TYPE NUMERIC(18,2);
+ALTER TABLE orders ALTER COLUMN shipping TYPE NUMERIC(18,2);
+ALTER TABLE orders ALTER COLUMN total TYPE NUMERIC(18,2);
+
+CREATE TABLE IF NOT EXISTS kujuk_settings (key TEXT PRIMARY KEY, value JSONB NOT NULL);
+
+ALTER TABLE seller_profiles ADD COLUMN IF NOT EXISTS logo TEXT;
+ALTER TABLE seller_profiles ADD COLUMN IF NOT EXISTS cover TEXT;
+ALTER TABLE seller_profiles ADD COLUMN IF NOT EXISTS description_en TEXT;
+ALTER TABLE seller_profiles ADD COLUMN IF NOT EXISTS description_ar TEXT;

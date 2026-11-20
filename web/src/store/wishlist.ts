@@ -22,7 +22,7 @@ export const useWishlist = create<WishlistState>()(
         })),
       remove: (productId) => set((state) => ({ items: state.items.filter((i) => i.id !== productId) })),
     }),
-    { name: "kajok.wishlist" },
+    { name: "kujuk.wishlist" },
   ),
 );
 
@@ -40,6 +40,6 @@ export const useRecentlyViewed = create<RecentlyViewedState>()(
           items: [product, ...state.items.filter((i) => i.id !== product.id)].slice(0, 10),
         })),
     }),
-    { name: "kajok.recent" },
+    { name: "kujuk.recent" },
   ),
 );

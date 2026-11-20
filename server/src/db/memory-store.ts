@@ -1,3 +1,5 @@
+import { changeFulfillment, money, sellerView } from '../lib/order-fulfillment.js';
+import { HttpError } from '../middleware/error.js';
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -36,6 +38,7 @@ const DATA_DIR = path.resolve(__dirname, "../../data");
 const DATA_FILE = path.join(DATA_DIR, "db.json");
 
 interface DbShape {
+  commission?: { bps: number; updatedAt: string; updatedBy: number };
   users: User[];
   addresses: Address[];
   categories: Category[];
@@ -59,11 +62,18 @@ export class MemoryStore implements Store {
   readonly kind = "memory" as const;
   private db!: DbShape;
 
-  constructor(private hashPassword: (plain: string) => Promise<string>) {}
+  constructor(private hashPassword: (plain: string) => Promise<string>, private dataFile = DATA_FILE, private includeSampleAccounts = true) {}
+
+  private checkoutQueue = Promise.resolve();
+  async checkout<T>(_userId: number, _productIds: number[], work: () => Promise<T>): Promise<T> {
+    const result = this.checkoutQueue.then(work);
+    this.checkoutQueue = result.then(() => undefined, () => undefined);
+    return result;
+  }
 
   async init(): Promise<void> {
-    if (fs.existsSync(DATA_FILE)) {
-      this.db = JSON.parse(fs.readFileSync(DATA_FILE, "utf-8")) as DbShape;
+    if (fs.existsSync(this.dataFile)) {
+      this.db = JSON.parse(fs.readFileSync(this.dataFile, "utf-8")) as DbShape;
       this.db.exchangeRates ??= [];
       this.db.sellerProfiles ??= [];
       return;
@@ -87,8 +97,9 @@ export class MemoryStore implements Store {
   }
 
   private save(): void {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
-    fs.writeFileSync(DATA_FILE, JSON.stringify(this.db, null, 2));
+    fs.mkdirSync(path.dirname(this.dataFile), { recursive: true });
+    fs.writeFileSync(`${this.dataFile}.tmp`, JSON.stringify(this.db, null, 2));
+    fs.renameSync(`${this.dataFile}.tmp`, this.dataFile);
   }
 
   private nextId(entity: keyof DbShape["counters"]): number {
@@ -116,7 +127,7 @@ export class MemoryStore implements Store {
       });
     }
 
-    for (const u of seedUsers) {
+    for (const u of this.includeSampleAccounts ? seedUsers : []) {
       const { password, ...rest } = u;
       this.db.users.push({
         ...rest,
@@ -268,6 +279,10 @@ export class MemoryStore implements Store {
   // ---------- Products ----------
   private filterSortProducts(query: ProductQuery): Product[] {
     let items = [...this.db.products];
+    if (!query.admin) items = items.filter(p => p.sellerId == null || this.db.sellerProfiles.some(s => s.userId === p.sellerId && s.status === 'approved'));
+    if (query.sellerId) items = items.filter(p => p.sellerId === query.sellerId);
+    if (query.inStock) items = items.filter(p => p.stock > 0);
+    if (query.offers) items = items.filter(p => p.discountPrice !== null && p.discountPrice < p.price);
     if (query.ids) items = items.filter((p) => query.ids!.includes(p.id));
     if (query.featured) items = items.filter((p) => p.isFeatured);
     if (query.isNew) items = items.filter((p) => p.isNew);
@@ -286,6 +301,7 @@ export class MemoryStore implements Store {
       items = items.filter((p) => {
         const brand = this.db.brands.find((b) => b.id === p.brandId);
         const cat = this.db.categories.find((c) => c.id === p.categoryId);
+        const shop = this.db.sellerProfiles.find(s => s.userId === p.sellerId);
         return (
           p.nameEn.toLowerCase().includes(q) ||
           p.nameAr.includes(query.q!) ||
@@ -293,7 +309,7 @@ export class MemoryStore implements Store {
           p.descriptionAr.includes(query.q!) ||
           brand?.name.toLowerCase().includes(q) ||
           cat?.nameEn.toLowerCase().includes(q) ||
-          cat?.nameAr.includes(query.q!)
+          cat?.nameAr.includes(query.q!) || shop?.shopNameEn.toLowerCase().includes(q) || shop?.shopNameAr.includes(query.q!)
         );
       });
     }
@@ -392,6 +408,12 @@ export class MemoryStore implements Store {
 
   // ---------- Orders ----------
   async createOrder(data: Omit<Order, "id" | "createdAt" | "updatedAt">): Promise<Order> {
+    for (const item of data.items) {
+      const product = this.db.products.find(p => p.id === item.productId);
+      const seller = item.sellerId == null ? null : this.db.sellerProfiles.find(p => p.userId === item.sellerId);
+      if (!product || product.stock < item.quantity || money(product.discountPrice ?? product.price) !== item.priceEgp || (product.sellerId ?? null) !== (item.sellerId ?? null) || (item.sellerId != null && seller?.status !== 'approved'))
+        throw new HttpError(409, 'Product changed. Please refresh your cart.');
+    }
     const now = new Date().toISOString();
     const order: Order = { ...data, id: this.nextId("orders"), createdAt: now, updatedAt: now };
     this.db.orders.push(order);
@@ -399,7 +421,7 @@ export class MemoryStore implements Store {
     for (const item of order.items) {
       const product = this.db.products.find((p) => p.id === item.productId);
       if (product) {
-        product.stock = Math.max(0, product.stock - item.quantity);
+        product.stock -= item.quantity;
         product.salesCount += item.quantity;
       }
     }
@@ -422,12 +444,19 @@ export class MemoryStore implements Store {
   async getOrderByReference(reference: string): Promise<Order | null> {
     return this.db.orders.find((o) => o.reference.toLowerCase() === reference.toLowerCase()) ?? null;
   }
-  async updateOrderStatus(id: number, status: OrderStatus): Promise<Order | null> {
-    const order = this.db.orders.find((o) => o.id === id);
-    if (!order) return null;
-    order.status = status;
-    order.updatedAt = new Date().toISOString();
-    if (status === "delivered") order.paymentStatus = order.paymentMethod === "cod" ? "paid" : order.paymentStatus;
+  async listOrdersForSeller(sellerId: number) {
+    return (await this.listOrders()).filter(o => o.sellerOrders?.some(p => p.sellerId === sellerId)).map(o => sellerView(o, sellerId));
+  }
+
+  async updateOrderStatus(id: number, status: OrderStatus, sellerId?: number | null): Promise<Order | null> {
+    const index = this.db.orders.findIndex(o => o.id === id);
+    if (index < 0) return null;
+    const { order, restock } = changeFulfillment(this.db.orders[index], status, sellerId);
+    for (const item of restock) {
+      const product = this.db.products.find(p => p.id === item.productId);
+      if (product) { product.stock += item.quantity; product.salesCount = Math.max(0, product.salesCount - item.quantity); }
+    }
+    this.db.orders[index] = order;
     this.save();
     return order;
   }
@@ -487,6 +516,9 @@ export class MemoryStore implements Store {
   }
 
   // ---------- Reporting ----------
+  async getCommission() { return this.db.commission ?? null; }
+  async setCommission(value: { bps: number; updatedAt: string; updatedBy: number }) { this.db.commission = value; this.save(); }
+
   async adminStats(): Promise<AdminStats> {
     const days: { date: string; orders: number; revenue: number }[] = [];
     for (let i = 13; i >= 0; i--) {

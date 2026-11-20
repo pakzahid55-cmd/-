@@ -12,3 +12,7 @@ coverage
 .arena
 
 .cache
+
+**/.next
+
+**/.next-hosted-preview
