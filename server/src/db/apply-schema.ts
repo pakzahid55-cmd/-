@@ -12,7 +12,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 async function main(): Promise<void> {
   if (!usingPostgres) {
-    console.error("DATABASE_URL is not set. Export it first, e.g.\n  DATABASE_URL=postgres://user:pass@host:5432/kajok npm run db:schema");
+    console.error("DATABASE_URL is not set. Export it first, e.g.\n  DATABASE_URL=postgres://user:pass@host:5432/kujuk npm run db:schema");
     process.exit(1);
   }
   const sql = fs.readFileSync(path.resolve(__dirname, "schema.sql"), "utf-8");
@@ -20,7 +20,7 @@ async function main(): Promise<void> {
   await client.connect();
   try {
     await client.query(sql);
-    console.log("KAJOK PostgreSQL schema applied (all statements are CREATE IF NOT EXISTS — nothing was dropped).");
+    console.log("KUJUK PostgreSQL schema applied (all statements are CREATE IF NOT EXISTS — nothing was dropped).");
   } finally {
     await client.end();
   }

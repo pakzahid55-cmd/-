@@ -1,0 +1,16 @@
+{
+  "indexes": [
+    { "collectionGroup": "kujuk_notifications", "queryScope": "COLLECTION", "fields": [ { "fieldPath": "userId", "order": "ASCENDING" }, { "fieldPath": "createdAt", "order": "DESCENDING" } ] }
+  ],
+  "fieldOverrides": [
+    { "collectionGroup": "kujuk_orders", "fieldPath": "items", "indexes": [] },
+    { "collectionGroup": "kujuk_orders", "fieldPath": "sellerOrders", "indexes": [] },
+    { "collectionGroup": "kujuk_orders", "fieldPath": "customer", "indexes": [] },
+    { "collectionGroup": "kujuk_seller_orders", "fieldPath": "items", "indexes": [] },
+    { "collectionGroup": "kujuk_seller_orders", "fieldPath": "customer", "indexes": [] },
+    { "collectionGroup": "kujuk_products", "fieldPath": "images", "indexes": [] },
+    { "collectionGroup": "kujuk_products", "fieldPath": "specs", "indexes": [] },
+    { "collectionGroup": "kujuk_products", "fieldPath": "descriptionEn", "indexes": [] },
+    { "collectionGroup": "kujuk_products", "fieldPath": "descriptionAr", "indexes": [] }
+  ]
+}

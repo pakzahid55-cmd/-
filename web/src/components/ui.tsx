@@ -1,3 +1,4 @@
+import { useCurrency } from "../store/currency";
 import type { ReactNode } from "react";
 import { useI18n } from "../i18n/I18nProvider";
 import { discountPercent, formatPrice } from "../lib/format";
@@ -66,6 +67,8 @@ export function Stars({ value, size = 14 }: { value: number; size?: number }) {
 
 export function Price({ product, size = "md" }: { product: Pick<Product, "price" | "discountPrice">; size?: "sm" | "md" | "lg" }) {
   const { lang } = useI18n();
+  useCurrency(s => s.currency);
+  useCurrency(s => s.info.rate);
   const hasDiscount = product.discountPrice !== null && product.discountPrice < product.price;
   const sizes = {
     sm: { current: "text-sm", old: "text-xs" },
@@ -84,7 +87,7 @@ export function DiscountBadge({ product }: { product: Pick<Product, "price" | "d
   const { t } = useI18n();
   const pct = discountPercent(product.price, product.discountPrice);
   if (!pct) return null;
-  return <span className="badge-kajok bg-red-600 text-white">{t("common.off", { n: pct })}</span>;
+  return <span className="badge-kujuk bg-red-600 text-white">{t("common.off", { n: pct })}</span>;
 }
 
 export function PageHeader({ title, subtitle }: { title: string; subtitle?: string }) {

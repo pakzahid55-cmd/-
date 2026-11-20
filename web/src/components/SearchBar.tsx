@@ -1,3 +1,4 @@
+import { formatPrice } from "../lib/format";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useI18n } from "../i18n/I18nProvider";
@@ -32,21 +33,23 @@ export function SearchBar({ onNavigate }: { onNavigate?: () => void }) {
     window.clearTimeout(debounce.current);
     if (query.trim().length < 2) {
       setSuggestions(null);
+      setLoading(false);
       return;
     }
+    const abort = new AbortController();
     setLoading(true);
     debounce.current = window.setTimeout(async () => {
       try {
-        const data = await api<SuggestResponse>(`/products/suggest?q=${encodeURIComponent(query.trim())}`, { auth: false });
+        const data = await api<SuggestResponse>(`/products/suggest?q=${encodeURIComponent(query.trim())}`, { auth: false, signal: abort.signal });
         setSuggestions(data);
         setOpen(true);
       } catch {
-        setSuggestions(null);
+        if (!abort.signal.aborted) setSuggestions(null);
       } finally {
-        setLoading(false);
+        if (!abort.signal.aborted) setLoading(false);
       }
     }, 180);
-    return () => window.clearTimeout(debounce.current);
+    return () => { window.clearTimeout(debounce.current); abort.abort(); };
   }, [query]);
 
   const submit = (e?: React.FormEvent) => {
@@ -79,7 +82,7 @@ export function SearchBar({ onNavigate }: { onNavigate?: () => void }) {
             onFocus={() => suggestions && setOpen(true)}
             placeholder={t("nav.searchPlaceholder")}
             aria-label={t("common.search")}
-            className="input-kajok pe-10"
+            className="input-kujuk pe-10"
           />
           <button
             type="submit"
@@ -108,7 +111,7 @@ export function SearchBar({ onNavigate }: { onNavigate?: () => void }) {
                   >
                     <img src={p.image} alt="" className="h-10 w-10 rounded-md object-cover" />
                     <span className="flex-1 truncate text-sm text-ink">{pick(p.nameEn, p.nameAr)}</span>
-                    <span className="text-xs font-semibold text-royal">${(p.discountPrice ?? p.price).toFixed(2)}</span>
+                    <span className="text-xs font-semibold text-royal">{formatPrice(p.discountPrice ?? p.price, lang)}</span>
                   </button>
                 </li>
               ))}
@@ -117,12 +120,12 @@ export function SearchBar({ onNavigate }: { onNavigate?: () => void }) {
           {(suggestions?.categories.length || suggestions?.brands.length) ? (
             <div className="flex flex-wrap gap-2 border-t border-line px-4 py-3">
               {suggestions?.categories.map((c) => (
-                <button key={c.slug} type="button" onClick={() => go(`/products?category=${c.slug}`)} className="badge-kajok bg-surface text-deep hover:bg-accent/20">
+                <button key={c.slug} type="button" onClick={() => go(`/products?category=${c.slug}`)} className="badge-kujuk bg-surface text-deep hover:bg-accent/20">
                   {pick(c.nameEn, c.nameAr)}
                 </button>
               ))}
               {suggestions?.brands.map((b) => (
-                <button key={b.slug} type="button" onClick={() => go(`/products?brand=${b.slug}`)} className="badge-kajok bg-surface text-deep hover:bg-accent/20">
+                <button key={b.slug} type="button" onClick={() => go(`/products?brand=${b.slug}`)} className="badge-kujuk bg-surface text-deep hover:bg-accent/20">
                   {b.name}
                 </button>
               ))}

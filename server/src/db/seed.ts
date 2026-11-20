@@ -93,7 +93,7 @@ async function main(): Promise<void> {
       }
     }
     await client.query("COMMIT");
-    console.log("KAJOK PostgreSQL seed completed.");
+    console.log("KUJUK PostgreSQL seed completed.");
   } catch (e) {
     await client.query("ROLLBACK");
     throw e;

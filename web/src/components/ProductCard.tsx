@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useI18n } from "../i18n/I18nProvider";
@@ -14,6 +15,7 @@ export function ProductCard({ product }: { product: Product }) {
   const [added, setAdded] = useState(false);
   const wished = has(product.id);
   const name = pick(product.nameEn, product.nameAr);
+  const image = product.images[0] || asset("/images/categories/electronics.jpg");
   const outOfStock = product.stock <= 0;
 
   const handleAdd = () => {
@@ -33,23 +35,15 @@ export function ProductCard({ product }: { product: Product }) {
   };
 
   return (
-    <article className="card-kajok group flex flex-col overflow-hidden transition-shadow hover:shadow-lift">
+    <article className="card-kujuk group flex flex-col overflow-hidden transition-shadow hover:shadow-lift">
       <div className="relative">
         <Link to={`/product/${product.slug}`} aria-label={name}>
-          <div className="aspect-square overflow-hidden bg-surface">
-            <img
-              src={product.images[0] ?? asset("/images/categories/electronics.jpg")}
-              alt={name}
-              loading="lazy"
-              className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
-              onError={(e) => {
-                (e.currentTarget as HTMLImageElement).src = asset("/images/categories/electronics.jpg");
-              }}
-            />
+          <div className="relative aspect-square overflow-hidden bg-surface">
+            {image.startsWith('/images/') ? <Image fill src={image} alt={name} sizes="(max-width: 640px) 46vw, (max-width: 1024px) 30vw, 288px" className="object-cover transition-transform duration-300 group-hover:scale-[1.03]" /> : <img src={image} alt={name} loading="lazy" className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]" onError={(e) => { e.currentTarget.src = asset('/images/categories/electronics.jpg'); }} />}
           </div>
         </Link>
-        <div className="absolute top-2.5 flex flex-col gap-1.5">
-          {product.isNew && <span className="badge-kajok bg-deep text-white">{t("common.new")}</span>}
+        <div className="absolute start-2.5 top-2.5 flex flex-col gap-1.5">
+          {product.isNew && <span className="badge-kujuk bg-deep text-white">{t("common.new")}</span>}
           <DiscountBadge product={product} />
         </div>
         <button
@@ -79,7 +73,7 @@ export function ProductCard({ product }: { product: Product }) {
           type="button"
           onClick={handleAdd}
           disabled={outOfStock}
-          className={`btn mt-3 w-full ${added ? "btn-secondary" : "btn-primary"}`}
+          className={`btn mt-3 w-full py-2.5 ${added ? "btn-secondary" : "btn-primary"}`}
         >
           {outOfStock ? t("common.outOfStock") : added ? `✓ ${t("product.addedToCart")}` : t("product.addToCart")}
         </button>

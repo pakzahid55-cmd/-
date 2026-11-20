@@ -1,35 +1,18 @@
+import { catalogPrice, mediaRef, slug } from "../lib/catalog-validation.js";
 import { Router } from "express";
-import path from "node:path";
-import fs from "node:fs";
+import { saveMedia } from "../lib/media-storage.js";
 import multer from "multer";
 import { z } from "zod";
 import { asyncHandler, validateBody } from "../lib/validate.js";
 import { requireAuth, requireSeller, toPublicUser } from "../middleware/auth.js";
 import { HttpError } from "../middleware/error.js";
-import type { Order, OrderItem, OrderStatus, Product, SellerProfile } from "../db/types.js";
+import { money, sellerView } from "../lib/order-fulfillment.js";
+import type { Store } from "../db/store.js";
+import type { SellerProfile } from "../db/types.js";
 
 const router = Router();
 
-/** Passport documents live OUTSIDE the public /uploads static dir — admin/seller access only. */
-const DOC_DIR = path.resolve(process.cwd(), "data", "passports");
-const docUpload = multer({
-  storage: multer.diskStorage({
-    destination: (_req, _file, cb) => {
-      fs.mkdirSync(DOC_DIR, { recursive: true });
-      cb(null, DOC_DIR);
-    },
-    filename: (req, file, cb) => {
-      const ext = path.extname(file.originalname).toLowerCase().replace(/[^.a-z0-9]/g, "");
-      cb(null, `passport-${req.user!.id}-${Date.now()}${ext || ".bin"}`);
-    },
-  }),
-  limits: { fileSize: 5 * 1024 * 1024 },
-  fileFilter: (_req, file, cb) => {
-    const ok = ["image/jpeg", "image/png", "image/webp", "application/pdf"].includes(file.mimetype);
-    if (ok) cb(null, true);
-    else cb(new Error("Only JPG, PNG, WEBP or PDF passport documents are allowed"));
-  },
-});
+const docUpload = multer({ limits: { fileSize: 5 * 1024 * 1024, files: 1, fields: 0 } });
 
 const applySchema = z.object({
   shopNameEn: z.string().min(2).max(120),
@@ -53,7 +36,8 @@ router.post(
   asyncHandler(async (req, res) => {
     const store = req.app.locals.store;
     const existing = await store.getSellerProfileByUserId(req.user!.id);
-    if (existing && existing.status === "approved") {
+    if (req.user!.role === "admin") throw new HttpError(403, "Use a separate account for selling");
+    if (existing && ["approved", "suspended"].includes(existing.status)) {
       throw new HttpError(409, "This account is already an approved seller");
     }
     const data = {
@@ -90,6 +74,12 @@ router.get(
   }),
 );
 
+const branding = z.object({ logo: mediaRef.nullable(), cover: mediaRef.nullable(), descriptionEn: z.string().trim().max(1500), descriptionAr: z.string().trim().max(1500) });
+router.put('/shop', requireSeller, validateBody(branding), asyncHandler(async (req, res) => {
+  const profile = await assertApprovedSeller(req);
+  res.json({ profile: await req.app.locals.store.updateSellerProfile(profile.id, req.body) });
+}));
+
 // Passport document upload (the seller's own record only).
 router.post(
   "/document",
@@ -99,8 +89,10 @@ router.post(
     const store = req.app.locals.store;
     const profile = await store.getSellerProfileByUserId(req.user!.id);
     if (!profile) throw new HttpError(404, "Submit your seller application first");
+    if (profile.status === "approved" || profile.status === "suspended") throw new HttpError(409, "Contact the administrator to change the verification document");
     if (!req.file) throw new HttpError(400, "No document uploaded");
-    const updated = await store.updateSellerProfile(profile.id, { passportDocument: req.file.filename });
+    const file = await saveMedia("passports", req.file.buffer);
+    const updated = await store.updateSellerProfile(profile.id, { passportDocument: file.name });
     res.status(201).json({ profile: updated });
   }),
 );
@@ -111,26 +103,27 @@ router.get(
   requireSeller,
   asyncHandler(async (req, res) => {
     const store = req.app.locals.store;
-    const products = req.user!.role === "admin" ? (await store.listProducts({ page: 1, limit: 200 })).items : await store.listProductsBySeller(req.user!.id);
+    await assertApprovedSeller(req);
+    const products = await store.listProductsBySeller(req.user!.id);
     res.json({ items: products });
   }),
 );
 
 const productInput = z.object({
-  slug: z.string().min(2).max(120),
+  slug,
   nameEn: z.string().min(2).max(160),
   nameAr: z.string().min(2).max(160),
   descriptionEn: z.string().max(5000).default(""),
   descriptionAr: z.string().max(5000).default(""),
-  price: z.number().min(0),
-  discountPrice: z.number().min(0).nullable().default(null),
+  price: catalogPrice,
+  discountPrice: catalogPrice.nullable().default(null),
   brandId: z.number().int().nonnegative().default(0),
   categoryId: z.number().int().nonnegative().default(0),
-  stock: z.number().int().min(0).default(0),
-  images: z.array(z.string().max(2_000_000)).max(12).default([]),
-  video: z.string().max(2_000_000).nullish(),
-  specs: z.record(z.string(), z.string()).default({}),
-  isFeatured: z.boolean().default(false),
+  stock: z.number().int().min(0).max(1_000_000).default(0),
+  images: z.array(mediaRef).max(12).default([]),
+  video: mediaRef.nullish(),
+  specs: z.record(z.string().max(60), z.string().max(250)).refine(row => Object.keys(row).length <= 30).default({}),
+
   isNew: z.boolean().default(false),
   sku: z.string().max(60).nullable().default(null),
 });
@@ -150,8 +143,8 @@ router.post(
   validateBody(productInput),
   asyncHandler(async (req, res) => {
     const store = req.app.locals.store;
-    if (req.user!.role !== "admin") await assertApprovedSeller(req);
-    const product = await store.createProduct({ ...req.body, sellerId: req.user!.role === "admin" ? null : req.user!.id });
+    await assertApprovedSeller(req);
+    const product = await store.createProduct({ ...req.body, isFeatured: false, sellerId: req.user!.id });
     res.status(201).json({ product });
   }),
 );
@@ -162,11 +155,9 @@ router.put(
   validateBody(productInput.partial()),
   asyncHandler(async (req, res) => {
     const store = req.app.locals.store;
+    await assertApprovedSeller(req);
     const existing = await store.getProductById(Number(req.params.id));
-    if (!existing) throw new HttpError(404, "Product not found");
-    if (req.user!.role !== "admin" && existing.sellerId !== req.user!.id) {
-      throw new HttpError(403, "This product belongs to another seller");
-    }
+    if (!existing || existing.sellerId !== req.user!.id) throw new HttpError(404, "Product not found");
     const { sellerId: _ignored, ...safe } = req.body as Record<string, unknown>;
     const product = await store.updateProduct(existing.id, safe);
     res.json({ product });
@@ -178,54 +169,41 @@ router.delete(
   requireSeller,
   asyncHandler(async (req, res) => {
     const store = req.app.locals.store;
+    await assertApprovedSeller(req);
     const existing = await store.getProductById(Number(req.params.id));
-    if (!existing) throw new HttpError(404, "Product not found");
-    if (req.user!.role !== "admin" && existing.sellerId !== req.user!.id) {
-      throw new HttpError(403, "This product belongs to another seller");
-    }
+    if (!existing || existing.sellerId !== req.user!.id) throw new HttpError(404, "Product not found");
     await store.deleteProduct(existing.id);
     res.json({ ok: true });
   }),
 );
 
 // ---------- Seller orders & financials (strict tenant isolation) ----------
-router.get(
-  "/orders",
-  requireSeller,
-  asyncHandler(async (req, res) => {
-    const store = req.app.locals.store;
-    const own = await store.listProductsBySeller(req.user!.id);
-    const ownIds = new Set(own.map((p: Product) => p.id));
-    const all = await store.listOrders();
-    const items = all
-      .map((o: Order) => ({ ...o, items: o.items.filter((i: OrderItem) => ownIds.has(i.productId)) }))
-      .filter((o: Order) => o.items.length > 0);
-    res.json({ items });
-  }),
-);
+router.get('/orders', requireSeller, asyncHandler(async (req, res) => {
+  await assertApprovedSeller(req);
+  const store: Store = req.app.locals.store;
+  const items = await store.listOrdersForSeller(req.user!.id);
+  res.json({ items });
+}));
 
-router.get(
-  "/stats",
-  requireSeller,
-  asyncHandler(async (req, res) => {
-    const store = req.app.locals.store;
-    const own = await store.listProductsBySeller(req.user!.id);
-    const ownIds = new Set(own.map((p: Product) => p.id));
-    const all = await store.listOrders();
-    let revenue = 0;
-    let orders = 0;
-    let pending = 0;
-    for (const o of all as Order[]) {
-      const mine = o.items.filter((i: OrderItem) => ownIds.has(i.productId));
-      if (mine.length === 0) continue;
-      orders += 1;
-      if (o.status === "pending") pending += 1;
-      if (o.status !== "cancelled") {
-        revenue += mine.reduce((s: number, i: OrderItem) => s + i.price * i.quantity, 0) / (Number(o.exchangeRate) || 1);
-      }
-    }
-    res.json({ totalRevenue: Math.round(revenue * 100) / 100, totalOrders: orders, pendingOrders: pending, totalProducts: own.length });
-  }),
-);
+router.put('/orders/:id/status', requireSeller, validateBody(z.object({ status: z.enum(['processing', 'shipped', 'delivered']) })), asyncHandler(async (req, res) => {
+  await assertApprovedSeller(req);
+  const id = Number(req.params.id);
+  if (!Number.isSafeInteger(id) || id < 1) throw new HttpError(404, 'Order not found');
+  const store: Store = req.app.locals.store;
+  const order = await store.updateOrderStatus(id, req.body.status, req.user!.id);
+  if (!order) throw new HttpError(404, 'Order not found');
+  res.json({ order: sellerView(order, req.user!.id) });
+}));
+
+router.get('/stats', requireSeller, asyncHandler(async (req, res) => {
+  await assertApprovedSeller(req);
+  const store: Store = req.app.locals.store;
+  const [items, products] = await Promise.all([store.listOrdersForSeller(req.user!.id), store.listProductsBySeller(req.user!.id)]);
+  const delivered = items.filter(order => order.status === 'delivered');
+  res.json({ totalRevenue: money(delivered.reduce((n, o) => n + (o.subtotal - o.discount) / o.exchangeRate, 0)),
+    totalCommission: money(delivered.reduce((n, o) => n + o.commission / o.exchangeRate, 0)),
+    totalEarnings: money(delivered.reduce((n, o) => n + o.earnings / o.exchangeRate, 0)),
+    totalOrders: items.length, pendingOrders: items.filter(o => o.status === 'pending').length, totalProducts: products.length });
+}));
 
 export default router;

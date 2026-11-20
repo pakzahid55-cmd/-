@@ -5,46 +5,48 @@ import { Spinner } from "./components/ui";
 import { useAuth } from "./store/auth";
 
 // Customer pages
-const HomePage = lazy(() => import("./pages/HomePage").then((m) => ({ default: m.HomePage })));
-const ProductsPage = lazy(() => import("./pages/ProductsPage").then((m) => ({ default: m.ProductsPage })));
-const CategoriesPage = lazy(() => import("./pages/CategoriesPage").then((m) => ({ default: m.CategoriesPage })));
-const ProductDetailPage = lazy(() => import("./pages/ProductDetailPage").then((m) => ({ default: m.ProductDetailPage })));
-const SearchPage = lazy(() => import("./pages/SearchPage").then((m) => ({ default: m.SearchPage })));
-const CartPage = lazy(() => import("./pages/CartPage").then((m) => ({ default: m.CartPage })));
-const CheckoutPage = lazy(() => import("./pages/CheckoutPage").then((m) => ({ default: m.CheckoutPage })));
-const LoginPage = lazy(() => import("./pages/LoginPage").then((m) => ({ default: m.LoginPage })));
-const RegisterPage = lazy(() => import("./pages/RegisterPage").then((m) => ({ default: m.RegisterPage })));
-const AccountPage = lazy(() => import("./pages/AccountPage").then((m) => ({ default: m.AccountPage })));
-const OrdersPage = lazy(() => import("./pages/OrdersPage").then((m) => ({ default: m.OrdersPage })));
-const TrackOrderPage = lazy(() => import("./pages/TrackOrderPage").then((m) => ({ default: m.TrackOrderPage })));
-const WishlistPage = lazy(() => import("./pages/WishlistPage").then((m) => ({ default: m.WishlistPage })));
-const OffersPage = lazy(() => import("./pages/OffersPage").then((m) => ({ default: m.OffersPage })));
-const ContactPage = lazy(() => import("./pages/ContactPage").then((m) => ({ default: m.ContactPage })));
-const AboutPage = lazy(() => import("./pages/AboutPage").then((m) => ({ default: m.AboutPage })));
-const PrivacyPage = lazy(() => import("./pages/PrivacyPage").then((m) => ({ default: m.PrivacyPage })));
-const TermsPage = lazy(() => import("./pages/TermsPage").then((m) => ({ default: m.TermsPage })));
+const HomePage = lazy(() => import("./screens/HomePage").then((m) => ({ default: m.HomePage })));
+const ProductsPage = lazy(() => import("./screens/ProductsPage").then((m) => ({ default: m.ProductsPage })));
+const CategoriesPage = lazy(() => import("./screens/CategoriesPage").then((m) => ({ default: m.CategoriesPage })));
+const ProductDetailPage = lazy(() => import("./screens/ProductDetailPage").then((m) => ({ default: m.ProductDetailPage })));
+const SearchPage = lazy(() => import("./screens/SearchPage").then((m) => ({ default: m.SearchPage })));
+const CartPage = lazy(() => import("./screens/CartPage").then((m) => ({ default: m.CartPage })));
+const CheckoutPage = lazy(() => import("./screens/CheckoutPage").then((m) => ({ default: m.CheckoutPage })));
+const LoginPage = lazy(() => import("./screens/LoginPage").then((m) => ({ default: m.LoginPage })));
+const RegisterPage = lazy(() => import("./screens/RegisterPage").then((m) => ({ default: m.RegisterPage })));
+const AccountPage = lazy(() => import("./screens/AccountPage").then((m) => ({ default: m.AccountPage })));
+const OrdersPage = lazy(() => import("./screens/OrdersPage").then((m) => ({ default: m.OrdersPage })));
+const TrackOrderPage = lazy(() => import("./screens/TrackOrderPage").then((m) => ({ default: m.TrackOrderPage })));
+const WishlistPage = lazy(() => import("./screens/WishlistPage").then((m) => ({ default: m.WishlistPage })));
+const OffersPage = lazy(() => import("./screens/OffersPage").then((m) => ({ default: m.OffersPage })));
+const ContactPage = lazy(() => import("./screens/ContactPage").then((m) => ({ default: m.ContactPage })));
+const AboutPage = lazy(() => import("./screens/AboutPage").then((m) => ({ default: m.AboutPage })));
+const PrivacyPage = lazy(() => import("./screens/PrivacyPage").then((m) => ({ default: m.PrivacyPage })));
+const TermsPage = lazy(() => import("./screens/TermsPage").then((m) => ({ default: m.TermsPage })));
 
 // Admin pages
-const AdminLayout = lazy(() => import("./pages/admin/AdminLayout").then((m) => ({ default: m.AdminLayout })));
-const AdminDashboardPage = lazy(() => import("./pages/admin/AdminDashboardPage").then((m) => ({ default: m.AdminDashboardPage })));
-const AdminProductsPage = lazy(() => import("./pages/admin/AdminProductsPage").then((m) => ({ default: m.AdminProductsPage })));
-const AdminCatalogPage = lazy(() => import("./pages/admin/AdminCatalogPage").then((m) => ({ default: m.AdminCatalogPage })));
-const AdminOrdersPage = lazy(() => import("./pages/admin/AdminOrdersPage").then((m) => ({ default: m.AdminOrdersPage })));
-const AdminCustomersPage = lazy(() => import("./pages/admin/AdminCustomersPage").then((m) => ({ default: m.AdminCustomersPage })));
-const AdminCouponsPage = lazy(() => import("./pages/admin/AdminCouponsPage").then((m) => ({ default: m.AdminCouponsPage })));
-const AdminBannersPage = lazy(() => import("./pages/admin/AdminBannersPage").then((m) => ({ default: m.AdminBannersPage })));
-const AdminCurrencyPage = lazy(() => import("./pages/admin/AdminCurrencyPage").then((m) => ({ default: m.AdminCurrencyPage })));
-const AdminSellersPage = lazy(() => import("./pages/admin/AdminSellersPage").then((m) => ({ default: m.AdminSellersPage })));
-const SellerApplyPage = lazy(() => import("./pages/SellerApplyPage").then((m) => ({ default: m.SellerApplyPage })));
-const SellerCenterPage = lazy(() => import("./pages/SellerCenterPage").then((m) => ({ default: m.SellerCenterPage })));
+const AdminLayout = lazy(() => import("./screens/admin/AdminLayout").then((m) => ({ default: m.AdminLayout })));
+const AdminDashboardPage = lazy(() => import("./screens/admin/AdminDashboardPage").then((m) => ({ default: m.AdminDashboardPage })));
+const AdminProductsPage = lazy(() => import("./screens/admin/AdminProductsPage").then((m) => ({ default: m.AdminProductsPage })));
+const AdminCatalogPage = lazy(() => import("./screens/admin/AdminCatalogPage").then((m) => ({ default: m.AdminCatalogPage })));
+const AdminOrdersPage = lazy(() => import("./screens/admin/AdminOrdersPage").then((m) => ({ default: m.AdminOrdersPage })));
+const AdminCustomersPage = lazy(() => import("./screens/admin/AdminCustomersPage").then((m) => ({ default: m.AdminCustomersPage })));
+const AdminCouponsPage = lazy(() => import("./screens/admin/AdminCouponsPage").then((m) => ({ default: m.AdminCouponsPage })));
+const AdminBannersPage = lazy(() => import("./screens/admin/AdminBannersPage").then((m) => ({ default: m.AdminBannersPage })));
+const AdminCurrencyPage = lazy(() => import("./screens/admin/AdminCurrencyPage").then((m) => ({ default: m.AdminCurrencyPage })));
+const AdminSellersPage = lazy(() => import("./screens/admin/AdminSellersPage").then((m) => ({ default: m.AdminSellersPage })));
+const ShopPage = lazy(() => import("./screens/ShopPage").then(m => ({ default: m.ShopPage })));
+const NotificationsPage = lazy(() => import("./screens/NotificationsPage").then((m) => ({ default: m.NotificationsPage })));
+const SellerApplyPage = lazy(() => import("./screens/SellerApplyPage").then((m) => ({ default: m.SellerApplyPage })));
+const SellerCenterPage = lazy(() => import("./screens/SellerCenterPage").then((m) => ({ default: m.SellerCenterPage })));
 
 function NotFoundPage() {
   return (
-    <div className="container-kajok py-24 text-center">
+    <div className="container-kujuk py-24 text-center">
       <p className="text-6xl font-extrabold text-accent">404</p>
       <p className="mt-4 text-lg font-semibold">Page not found</p>
       <a href="/" className="btn-primary mt-6 inline-flex px-6 py-3">
-        KAJOK
+        KUJUK
       </a>
     </div>
   );
@@ -64,12 +66,14 @@ export default function App() {
           <Route index element={<HomePage />} />
           <Route path="products" element={<ProductsPage />} />
           <Route path="categories" element={<CategoriesPage />} />
+          <Route path="shop/:id" element={<ShopPage />} />
           <Route path="product/:slug" element={<ProductDetailPage />} />
           <Route path="search" element={<SearchPage />} />
           <Route path="cart" element={<CartPage />} />
           <Route path="checkout" element={<CheckoutPage />} />
           <Route path="login" element={<LoginPage />} />
           <Route path="register" element={<RegisterPage />} />
+          <Route path="notifications" element={<NotificationsPage />} />
           <Route path="account" element={<AccountPage />} />
           <Route path="orders" element={<OrdersPage />} />
           <Route path="orders/track" element={<TrackOrderPage />} />

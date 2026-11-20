@@ -39,7 +39,7 @@ router.get(
 );
 
 const rateSchema = z.object({
-  rate: z.number().positive().max(1_000_000),
+  rate: z.number().min(0.0001).max(1_000_000).transform(rate => Math.round(rate * 10000) / 10000),
   note: z.string().max(200).nullable().optional(),
 });
 

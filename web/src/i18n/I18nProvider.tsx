@@ -29,7 +29,7 @@ function lookup(dict: Dict, key: string): string | undefined {
 
 export function I18nProvider({ children }: { children: ReactNode }) {
   const [lang, setLangState] = useState<Lang>(() => {
-    const saved = localStorage.getItem("kajok.lang");
+    const saved = localStorage.getItem("kujuk.lang");
     return saved === "ar" || saved === "en" ? saved : "en";
   });
 
@@ -38,8 +38,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     document.documentElement.lang = lang;
     document.documentElement.dir = dir;
-    document.title = lang === "ar" ? "كجوك — طلبك. على طريقتك." : "KAJOK — Your Order. Your Way.";
-    localStorage.setItem("kajok.lang", lang);
+    localStorage.setItem("kujuk.lang", lang);
   }, [lang, dir]);
 
   const setLang = useCallback((next: Lang) => setLangState(next), []);

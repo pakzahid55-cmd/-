@@ -9,7 +9,7 @@ const router = Router();
 
 function parseQuery(raw: Record<string, unknown>): ProductQuery {
   const q: ProductQuery = {};
-  if (typeof raw.q === "string" && raw.q.trim()) q.q = raw.q.trim();
+  if (typeof raw.q === "string" && raw.q.trim()) q.q = raw.q.trim().slice(0, 100);
   if (typeof raw.category === "string" && raw.category) q.category = raw.category;
   if (typeof raw.brand === "string" && raw.brand) q.brand = raw.brand;
   if (raw.minPrice !== undefined && raw.minPrice !== "") q.minPrice = Number(raw.minPrice);
@@ -19,7 +19,13 @@ function parseQuery(raw: Record<string, unknown>): ProductQuery {
   if (raw.limit !== undefined && raw.limit !== "") q.limit = Number(raw.limit);
   if (raw.featured === "true" || raw.featured === true) q.featured = true;
   if (raw.new === "true" || raw.new === true) q.isNew = true;
-  if (typeof raw.ids === "string" && raw.ids) q.ids = raw.ids.split(",").map(Number).filter((n) => Number.isFinite(n));
+  q.inStock = raw.inStock === "true";
+  q.offers = raw.offers === "true";
+  if (!Number.isFinite(q.minPrice)) delete q.minPrice;
+  if (!Number.isFinite(q.maxPrice)) delete q.maxPrice;
+  if (!Number.isSafeInteger(q.page)) delete q.page;
+  if (!Number.isSafeInteger(q.limit)) delete q.limit;
+  if (typeof raw.ids === "string" && raw.ids) q.ids = raw.ids.split(",").map(Number).filter((n) => Number.isSafeInteger(n) && n > 0).slice(0, 60);
   return q;
 }
 
@@ -34,7 +40,7 @@ router.get(
 router.get(
   "/suggest",
   asyncHandler(async (req, res) => {
-    const q = String(req.query.q ?? "").trim();
+    const q = String(req.query.q ?? "").trim().slice(0, 100);
     if (q.length < 2) {
       res.json({ products: [], categories: [], brands: [] });
       return;
@@ -67,7 +73,7 @@ router.post(
     const store = req.app.locals.store;
     const productId = Number(req.params.id);
     const product = await store.getProductById(productId);
-    if (!product) throw new HttpError(404, "Product not found");
+    if (!product || (product.sellerId != null && (await store.getSellerProfileByUserId(product.sellerId))?.status !== "approved")) throw new HttpError(404, "Product not found");
     const review = await store.createReview({
       productId,
       userId: req.user!.id,
@@ -84,7 +90,7 @@ router.get(
   asyncHandler(async (req, res) => {
     const store = req.app.locals.store;
     const product = await store.getProductBySlug(req.params.slug);
-    if (!product) throw new HttpError(404, "Product not found");
+    if (!product || (product.sellerId != null && (await store.getSellerProfileByUserId(product.sellerId))?.status !== "approved")) throw new HttpError(404, "Product not found");
     const [reviews, related] = await Promise.all([store.listReviews(product.id), store.relatedProducts(product)]);
     res.json({ product, reviews, related });
   }),

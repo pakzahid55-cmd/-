@@ -1,70 +1,32 @@
-# KAJOK — Your Order. Your Way.
+# KUJUK – كجوك
 
-A premium, bilingual (English / Arabic RTL) e-commerce platform with smart search, full cart & checkout, customer accounts, order tracking, and a secure admin dashboard.
+**Your Order. Your Way.** A bilingual marketplace for multiple independent sellers in Egypt and Sudan, with server-quoted cash on delivery.
 
-![stack](https://img.shields.io/badge/React%2018-TypeScript-blue) ![stack](https://img.shields.io/badge/Tailwind-CSS-purple) ![stack](https://img.shields.io/badge/Node-Express-green) ![stack](https://img.shields.io/badge/PostgreSQL-ready-blue) ![stack](https://img.shields.io/badge/Firebase-integrated-orange)
+- [نشر نسخة تجربة برابط من الهاتف](./PREVIEW-AR.md)
+- [دليل الإعداد والنشر](./DEPLOY-AR.md)
+- [تقرير التسليم والاختبارات](./FINAL_REPORT_AR.md)
+- [Expo / Android / iOS implementation plan](./mobile/README.md)
 
-## Quick start
+## Local preview
 
-**Deployment (Koyeb + Neon):** see [the Arabic deployment guide](./DEPLOY-AR.md) for the multi-stage Docker image, runtime secrets, free-tier/card caveats, and verification steps.
+Node.js 22 is required. From the repository root:
 
 ```bash
-npm install                 # installs server + web workspaces
-npm run dev:server          # API on http://localhost:4000
-npm run dev:web             # Store on http://localhost:5173 (proxies /api → 4000)
+npm ci
+npm run dev:server       # Terminal 1: Express API, port 4000
+npm run dev:web          # Terminal 2: Next.js, port 3000
+npm test                 # Isolated HTTP tests and Firebase config check
+npm run build            # TypeScript + production bundle
 ```
 
-Demo accounts:
+Open `http://localhost:3000`, not the API URL. Without server Firebase settings, the local API seeds a JSON store (`server/data/db.json`) with **sample** products and synthetic business data. Do not submit genuine personal documents or addresses to a preview. Local-only admin: `admin@kujuk.com` / `Admin123!`. Production refuses to start without Firebase configuration; these credentials are not deployed to Firebase or accepted in production.
 
-| Role     | Email              | Password      |
-|----------|--------------------|---------------|
-| Customer | sara@example.com   | Customer123!  |
-| Admin    | admin@kajok.com    | Admin123!     |
-
-## Architecture
-
-```
-├── server/                 # Node.js + Express + TypeScript REST API
-│   ├── src/db/
-│   │   ├── schema.sql      # PostgreSQL schema (idempotent, CREATE IF NOT EXISTS)
-│   │   ├── pg-store.ts     # PostgreSQL adapter (production store)
-│   │   ├── memory-store.ts # Embedded dev store (server/data/db.json)
-│   │   └── store.ts        # Storage contract both adapters implement
-│   ├── src/routes/         # auth, products, orders, coupons, admin
-│   └── src/middleware/     # JWT auth, admin authz, validation, errors
-└── web/                    # React 18 + TypeScript + Vite + Tailwind
-    └── src/
-        ├── lib/firebase.ts # Firebase (project kajok-65089) — auth/firestore/storage
-        ├── i18n/           # English + Arabic dictionaries (RTL aware)
-        ├── store/          # cart, wishlist, auth (zustand + persistence)
-        └── pages/          # 18 storefront pages + admin dashboard
+```text
+web/         Next.js + React + TypeScript; bilingual screens, seller and admin tools
+server/      API with Firebase Admin SDK, validation, tenant-scoped access and COD rules
+shared/      TypeScript checkout contract for all clients
+functions/   Firestore-triggered Cloud Function for FCM Web Push
+mobile/      Expo integration and release plan (no Android/iOS builds yet)
 ```
 
-### Database
-
-- **PostgreSQL is the canonical production store.** Set `DATABASE_URL` in `server/.env`,
-  then run `npm run build` followed by `npm run db:schema --workspace=server` (demo seed only: `npm run db:seed --workspace=server`, never on a live database).
-- Without `DATABASE_URL`, an embedded store (`server/data/db.json`) powers development —
-  the API code is identical for both.
-- Nothing is ever dropped or migrated destructively; schema uses conditional creates and additive `ADD COLUMN IF NOT EXISTS` changes.
-
-### Firebase (project `kajok-65089`)
-
-`web/src/lib/firebase.ts` initializes Auth, Firestore and Storage exactly once
-(duplicate-init guard) and lazy-initializes Analytics. Firebase sits **alongside** the
-PostgreSQL-backed API — it does not replace existing data or auth flows.
-Run the initialization test: `npm run test:firebase --workspace=web`.
-
-## Feature highlights
-
-- **Bilingual** — English (LTR) / العربية (RTL) with a language switcher, RTL layout, and localized products
-- **Smart search** — instant suggestions, keyword/brand/category matching, price filters, sorting, no-result suggestions
-- **Commerce** — product catalog with images/specs/reviews/related items, cart, coupons, COD checkout (online payments prepared but intentionally disabled until a real provider is connected), stock enforcement
-- **Accounts** — register/login/profile/password, saved addresses, order history
-- **Order tracking** — public tracking by reference with status timeline
-- **Admin dashboard** — sales stats + 14-day chart, product/category/brand/coupon/banner CRUD, order status management, customer list — all protected by server-side admin authorization
-- **Quality** — validated inputs (zod), JWT auth, role-based authz, lazy-loaded routes, loading/empty states, mobile-first responsive design, accessible focus states
-
-See [FINAL_REPORT.md](./FINAL_REPORT.md) for the full delivery report.
-
-Deployment regression checks (after `npm run build`): `node --test scripts/deploy.test.mjs`.
+Production uses Firebase Authentication, Cloud Firestore and Firebase Storage via server credentials. Firestore and Storage deny **all direct client access**; the API performs the authorization. Firebase project setup, rule deployment and testing remain necessary before taking orders. A PostgreSQL adapter remains available for existing development data; Firebase notifications use Firestore.

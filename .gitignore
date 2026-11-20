@@ -12,3 +12,14 @@ coverage/
 
 # Runtime uploads (media files are data, not code)
 server/uploads/
+
+.next/
+.expo/
+
+server/data/
+functions/.runtimeconfig.json
+.firebase/
+
+.next-hosted-preview/
+
+web/next-env.d.ts

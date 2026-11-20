@@ -1,3 +1,5 @@
+import { env } from "../config/env.js";
+import type { Store } from "../db/store.js";
 import { Router } from "express";
 import { z } from "zod";
 import { asyncHandler, validateBody } from "../lib/validate.js";
@@ -51,13 +53,15 @@ router.post(
   validateBody(registerSchema),
   asyncHandler(async (req, res) => {
     const store = req.app.locals.store;
+    if (process.env.FIREBASE_PROJECT_ID) throw new HttpError(405, "Sign up with Firebase Authentication");
     const { name, email, password, phone } = req.body;
+    if (env.hostedPreview && !email.endsWith('@example.test')) throw new HttpError(400, 'For this preview use a made-up address ending in @example.test');
     const existing = await store.findUserByEmail(email);
     if (existing) throw new HttpError(409, "An account with this email already exists");
     const user = await store.createUser({
       name,
       email,
-      phone: phone ?? null,
+      phone: env.hostedPreview ? null : phone ?? null,
       role: "customer",
       passwordHash: await hashPassword(password),
     });
@@ -66,52 +70,33 @@ router.post(
   }),
 );
 
-const firebaseLoginSchema = z.object({ idToken: z.string().min(20) });
+const firebaseLoginSchema = z.object({ idToken: z.string().max(8192).min(20) });
 
-/** Firebase identity login (Google / Phone OTP / verified email) → same app session. */
-router.post(
-  "/firebase",
-  validateBody(firebaseLoginSchema),
-  asyncHandler(async (req, res) => {
-    const store = req.app.locals.store;
-    const identity = await verifyFirebaseIdToken(req.body.idToken);
-    if (!identity.uid) throw new HttpError(400, "Firebase token has no subject");
-
-    let user = await store.findUserByFirebaseUid(identity.uid);
-    if (!user && identity.email) {
-      const byEmail = await store.findUserByEmail(identity.email.toLowerCase());
-      if (byEmail) {
-        user = await store.updateUser(byEmail.id, {
-          firebaseUid: identity.uid,
-          photoUrl: identity.picture,
-          emailVerified: identity.emailVerified,
-          phone: byEmail.phone ?? identity.phone,
-        });
-      }
-    }
-    if (!user) {
-      user = await store.createUser({
-        name: identity.name ?? (identity.email ? identity.email.split("@")[0] : "KAJOK User"),
-        email: (identity.email ?? `${identity.uid}@firebase.kajok.app`).toLowerCase(),
-        passwordHash: "",
-        role: "customer",
-        phone: identity.phone ?? null,
-        firebaseUid: identity.uid,
-        photoUrl: identity.picture,
-        country: null,
-        emailVerified: identity.emailVerified,
-      });
-    }
-    const token = signToken({ sub: user.id, role: user.role });
-    res.json({ token, user: toPublicUser(user) });
-  }),
-);
+// Firebase UID is the key. Never auto-link an existing KUJUK account by email.
+router.post('/firebase', validateBody(firebaseLoginSchema), asyncHandler(async (req, res) => {
+  const store: Store = req.app.locals.store;
+  const identity = await verifyFirebaseIdToken(req.body.idToken);
+  let user = await store.findUserByFirebaseUid(identity.uid);
+  const isSuperAdmin = Boolean(env.superAdminUid && identity.uid === env.superAdminUid && identity.emailVerified);
+  if (identity.email && !identity.emailVerified) throw new HttpError(403, 'Verify your email in Firebase before signing in to KUJUK');
+  if (!user) {
+    const email = (identity.email ?? `${identity.uid}@firebase.kujuk.invalid`).toLowerCase();
+    if (await store.findUserByEmail(email)) throw new HttpError(409, 'This email belongs to a different account');
+    user = await store.createUser({ name: identity.name || email.split('@')[0].slice(0, 80), email, passwordHash: '',
+      role: isSuperAdmin ? 'admin' : 'customer', phone: identity.phone, firebaseUid: identity.uid,
+      photoUrl: identity.picture, emailVerified: identity.emailVerified });
+  } else if (isSuperAdmin && user.role !== 'admin') {
+    user = await store.updateUser(user.id, { role: 'admin' }) ?? user;
+  }
+  res.json({ user: toPublicUser(user) });
+}));
 
 router.post(
   "/login",
   validateBody(loginSchema),
   asyncHandler(async (req, res) => {
     const store = req.app.locals.store;
+    if (process.env.FIREBASE_PROJECT_ID) throw new HttpError(405, "Sign in with Firebase Authentication");
     const { email, password } = req.body;
     const user = await store.findUserByEmail(email);
     if (!user || !(await verifyPassword(password, user.passwordHash))) {
@@ -147,6 +132,7 @@ router.put(
   validateBody(passwordSchema),
   asyncHandler(async (req, res) => {
     const store = req.app.locals.store;
+    if (process.env.FIREBASE_PROJECT_ID) throw new HttpError(405, "Manage your password through Firebase Authentication");
     const { currentPassword, newPassword } = req.body;
     const user = await store.findUserById(req.user!.id);
     if (!user || !(await verifyPassword(currentPassword, user.passwordHash))) {

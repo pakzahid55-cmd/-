@@ -1,8 +1,8 @@
 {
-  "name": "kajok",
+  "name": "kujuk",
   "version": "1.0.0",
   "private": true,
-  "description": "KAJOK — Your Order. Your Way. Premium e-commerce platform.",
+  "description": "KUJUK — Your Order. Your Way. Premium e-commerce platform.",
   "workspaces": [
     "server",
     "web"
@@ -14,9 +14,13 @@
     "db:schema": "npm run db:schema --workspace=server",
     "build": "npm run build --workspace=server && npm run build --workspace=web",
     "start": "npm run start --workspace=server",
-    "test:firebase": "npm run test:firebase --workspace=web"
+    "test:firebase": "npm run test:firebase --workspace=web",
+    "test": "npm run test -w server && npm run test:firebase -w web",
+    "start:web": "npm run start -w web",
+    "build:hosted-preview": "KUJUK_HOSTED_PREVIEW_BUILD=1 KUJUK_API_ORIGIN=http://127.0.0.1:4400 NEXT_PUBLIC_KUJUK_HOSTED_PREVIEW=1 npm run build",
+    "start:hosted-preview": "node scripts/start-hosted-preview.mjs"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   }
 }

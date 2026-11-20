@@ -1,5 +1,8 @@
 import type { NextFunction, Request, Response } from "express";
 import { verifyToken } from "../lib/jwt.js";
+import { env } from '../config/env.js';
+import { verifyFirebaseIdToken } from '../lib/firebase-token.js';
+import type { Store } from '../db/store.js';
 import type { Role, User } from "../db/types.js";
 
 declare global {
@@ -22,22 +25,25 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
     res.status(401).json({ error: "Authentication required" });
     return;
   }
-  const payload = verifyToken(token);
-  if (!payload) {
-    res.status(401).json({ error: "Invalid or expired token" });
-    return;
-  }
-  void req.app.locals.store
-    .findUserById(payload.sub)
-    .then((user: User | null) => {
-      if (!user) {
-        res.status(401).json({ error: "User no longer exists" });
-        return;
+  const store: Store = req.app.locals.store;
+  void (async () => {
+    if (process.env.FIREBASE_PROJECT_ID) {
+      const identity = await verifyFirebaseIdToken(token);
+      const user = await store.findUserByFirebaseUid(identity.uid);
+      if (!user) { res.status(401).json({ error: 'Complete account setup first' }); return; }
+      if (user.role === 'admin' && (!identity.emailVerified || (env.superAdminUid && identity.uid !== env.superAdminUid))) {
+        res.status(403).json({ error: 'Administrator identity is not authorized' }); return;
       }
       req.user = user;
       next();
-    })
-    .catch(next);
+      return;
+    }
+    const payload = verifyToken(token);
+    const user = payload ? await store.findUserById(payload.sub) : null;
+    if (!user) { res.status(401).json({ error: 'Invalid session' }); return; }
+    req.user = user;
+    next();
+  })().catch(next);
 }
 
 export function requireRole(...roles: Role[]) {

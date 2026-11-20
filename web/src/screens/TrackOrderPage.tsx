@@ -1,0 +1,136 @@
+import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
+import { PageHeader, Spinner } from "../components/ui";
+import { useI18n } from "../i18n/I18nProvider";
+import { api } from "../lib/api";
+import { formatDate } from "../lib/format";
+import type { OrderStatus } from "../lib/types";
+
+interface TrackedOrder {
+  reference: string;
+  status: OrderStatus;
+  shipments: { reference: string; status: OrderStatus }[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+const STEPS: OrderStatus[] = ["pending", "processing", "shipped", "delivered"];
+
+export function TrackOrderPage() {
+  const { t, pick, lang } = useI18n();
+  const [params, setParams] = useSearchParams();
+  const [ref, setRef] = useState(params.get("ref") ?? "");
+  const [order, setOrder] = useState<TrackedOrder | null>(null);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const runTrack = async (value: string) => {
+    if (!value.trim()) return;
+    setLoading(true);
+    setError("");
+    setOrder(null);
+    try {
+      const res = await api<{ order: TrackedOrder }>(`/orders/track/${encodeURIComponent(value.trim())}`, { auth: false });
+      setOrder(res.order);
+      const next = new URLSearchParams();
+      next.set("ref", res.order.reference);
+      setParams(next);
+    } catch {
+      setError(t("track.notFound"));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await runTrack(ref);
+  };
+
+  // Auto-track when the URL carries ?ref= (e.g. after checkout → "Track it").
+  useEffect(() => {
+    const initial = params.get("ref");
+    if (initial) {
+      setRef(initial);
+      void runTrack(initial);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const stepIndex = order ? STEPS.indexOf(order.status) : -1;
+
+  return (
+    <div className="container-kujuk py-8">
+      <PageHeader title={t("track.title")} subtitle={t("track.subtitle")} />
+
+      <form onSubmit={submit} className="card-kujuk mx-auto max-w-xl p-6">
+        <div className="flex gap-3">
+          <input
+            value={ref}
+            onChange={(e) => setRef(e.target.value)}
+            placeholder={t("track.placeholder")}
+            aria-label={t("track.placeholder")}
+            className="input-kujuk"
+            dir="ltr"
+          />
+          <button type="submit" disabled={loading} className="btn-primary px-8">
+            {t("track.track")}
+          </button>
+        </div>
+        {error && <p className="mt-4 rounded-lg bg-red-50 px-3.5 py-2.5 text-sm text-red-700">{error}</p>}
+      </form>
+
+      {loading && <Spinner />}
+
+      {order && (
+        <div className="card-kujuk mx-auto mt-8 max-w-2xl p-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-sm text-slate-400">{t("orders.orderNumber")}</p>
+              <p className="break-all text-sm font-bold text-royal">{order.reference}</p>
+            </div>
+            <div className="text-end">
+              <p className="text-sm text-slate-400">{t("track.placedOn")}</p>
+              <p className="font-semibold">{formatDate(order.createdAt, lang)}</p>
+            </div>
+          </div>
+
+          {order.status === "cancelled" ? (
+            <p className="mt-6 rounded-lg bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+              {t("orders.statuses.cancelled")}
+            </p>
+          ) : (
+            <ol className="mt-8 space-y-0">
+              {STEPS.map((step, i) => {
+                const done = i <= stepIndex;
+                return (
+                  <li key={step} className="flex gap-4">
+                    <div className="flex flex-col items-center">
+                      <span
+                        className={`flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold ${
+                          done ? "bg-royal text-white" : "bg-surface text-slate-400"
+                        }`}
+                      >
+                        {done ? "✓" : i + 1}
+                      </span>
+                      {i < STEPS.length - 1 && <span className={`h-10 w-0.5 ${i < stepIndex ? "bg-royal" : "bg-line"}`} />}
+                    </div>
+                    <div className="pb-2">
+                      <p className={`font-semibold ${done ? "text-ink" : "text-slate-400"}`}>
+                        {t(`orders.statuses.${step}`)}
+                      </p>
+                    </div>
+                  </li>
+                );
+              })}
+            </ol>
+          )}
+
+          {order.shipments.length > 1 && <ul className="mt-6 space-y-2 border-t border-line pt-5">
+            {order.shipments.map((shipment, i) => <li key={shipment.reference} className="flex justify-between gap-3 text-sm"><span>{pick(`Shipment ${i + 1}`, `الشحنة ${i + 1}`)}</span><strong>{t(`orders.statuses.${shipment.status}`)}</strong></li>)}
+          </ul>}
+        </div>
+      )}
+    </div>
+  );
+}

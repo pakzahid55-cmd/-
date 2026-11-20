@@ -1,6 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 export default {
-  content: ["./index.html", "./src/**/*.{ts,tsx}"],
+  content: ["./app/**/*.{ts,tsx}", "./src/**/*.{ts,tsx}"],
   theme: {
     extend: {
       colors: {
@@ -12,8 +12,8 @@ export default {
         line: "#E9E4F4",
       },
       fontFamily: {
-        sans: ["Inter", "Tajawal", "system-ui", "sans-serif"],
-        display: ["Inter", "Tajawal", "system-ui", "sans-serif"],
+        sans: ["Plus Jakarta Sans Variable", "Noto Sans Arabic Variable", "system-ui", "sans-serif"],
+        display: ["Plus Jakarta Sans Variable", "Noto Sans Arabic Variable", "system-ui", "sans-serif"],
       },
       boxShadow: {
         card: "0 1px 2px rgba(25,21,35,0.04), 0 8px 24px rgba(50,20,95,0.07)",

@@ -11,27 +11,27 @@ import {
   signInWithPhoneNumber,
   type ConfirmationResult,
   type User as FirebaseUser,
-} from "firebase/auth";
-import { auth } from "./firebase";
+} from "@firebase/auth";
+import { firebaseAuth } from "./firebase";
 
 export async function loginWithGoogle(): Promise<FirebaseUser> {
   const provider = new GoogleAuthProvider();
   provider.setCustomParameters({ prompt: "select_account" });
-  const cred = await signInWithPopup(auth, provider);
+  const cred = await signInWithPopup(firebaseAuth(), provider);
   return cred.user;
 }
 
 declare global {
   interface Window {
-    _kajokRecaptcha?: RecaptchaVerifier;
+    _kujukRecaptcha?: RecaptchaVerifier;
   }
 }
 
-export async function sendPhoneOtp(phoneE164: string, containerId = "kajok-recaptcha"): Promise<ConfirmationResult> {
-  if (!window._kajokRecaptcha) {
-    window._kajokRecaptcha = new RecaptchaVerifier(auth, containerId, { size: "invisible" });
+export async function sendPhoneOtp(phoneE164: string, containerId = "kujuk-recaptcha"): Promise<ConfirmationResult> {
+  if (!window._kujukRecaptcha) {
+    window._kujukRecaptcha = new RecaptchaVerifier(firebaseAuth(), containerId, { size: "invisible" });
   }
-  return signInWithPhoneNumber(auth, phoneE164, window._kajokRecaptcha);
+  return signInWithPhoneNumber(firebaseAuth(), phoneE164, window._kujukRecaptcha);
 }
 
 export async function confirmPhoneOtp(confirmation: ConfirmationResult, code: string): Promise<FirebaseUser> {
@@ -40,11 +40,11 @@ export async function confirmPhoneOtp(confirmation: ConfirmationResult, code: st
 }
 
 export async function sendPasswordReset(email: string): Promise<void> {
-  await sendPasswordResetEmail(auth, email);
+  await sendPasswordResetEmail(firebaseAuth(), email);
 }
 
 export async function getFirebaseIdToken(): Promise<string> {
-  const user = auth.currentUser;
+  const user = firebaseAuth().currentUser;
   if (!user) throw new Error("Not signed in with Firebase");
   return user.getIdToken();
 }
