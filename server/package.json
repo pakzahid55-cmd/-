@@ -5,9 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.json && node -e \"require('node:fs').copyFileSync('src/db/schema.sql', 'dist/db/schema.sql')\"",
     "start": "node dist/index.js",
-    "db:schema": "tsx src/db/apply-schema.ts",
+    "db:schema": "node dist/db/apply-schema.js",
     "db:seed": "tsx src/db/seed.ts"
   },
   "dependencies": {

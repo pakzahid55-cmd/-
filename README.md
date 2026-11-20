@@ -6,9 +6,7 @@ A premium, bilingual (English / Arabic RTL) e-commerce platform with smart searc
 
 ## Quick start
 
-**🚀 Deploy the real (database-backed) version in one click:**
-
-[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/pakzahid55-cmd/-)
+**Deployment (Koyeb + Neon):** see [the Arabic deployment guide](./DEPLOY-AR.md) for the multi-stage Docker image, runtime secrets, free-tier/card caveats, and verification steps.
 
 ```bash
 npm install                 # installs server + web workspaces
@@ -45,10 +43,10 @@ Demo accounts:
 ### Database
 
 - **PostgreSQL is the canonical production store.** Set `DATABASE_URL` in `server/.env`,
-  then run `npm run db:schema --workspace=server` (and `npm run db:seed` for demo data).
+  then run `npm run build` followed by `npm run db:schema --workspace=server` (demo seed only: `npm run db:seed --workspace=server`, never on a live database).
 - Without `DATABASE_URL`, an embedded store (`server/data/db.json`) powers development —
   the API code is identical for both.
-- Nothing is ever dropped or migrated destructively; schema statements are `CREATE IF NOT EXISTS`.
+- Nothing is ever dropped or migrated destructively; schema uses conditional creates and additive `ADD COLUMN IF NOT EXISTS` changes.
 
 ### Firebase (project `kajok-65089`)
 
@@ -68,3 +66,5 @@ Run the initialization test: `npm run test:firebase --workspace=web`.
 - **Quality** — validated inputs (zod), JWT auth, role-based authz, lazy-loaded routes, loading/empty states, mobile-first responsive design, accessible focus states
 
 See [FINAL_REPORT.md](./FINAL_REPORT.md) for the full delivery report.
+
+Deployment regression checks (after `npm run build`): `node --test scripts/deploy.test.mjs`.
